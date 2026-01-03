@@ -24,7 +24,10 @@ src/
   routes/
     health.ts       # /healthz endpoint
     index.ts        # Route aggregator
-test/               # Test directory (placeholder)
+    v1/
+      chat.ts       # POST /v1/chat/stream endpoint
+      index.ts      # v1 route aggregator
+test/               # Integration tests
 ```
 
 ## Local Development
@@ -59,6 +62,7 @@ The server will start on `http://localhost:3000` (or the PORT specified in `.env
 - `npm run build` - Build TypeScript to JavaScript
 - `npm run start` - Start production server (requires build first)
 - `npm run lint` - Run ESLint
+- `npm test` - Run integration tests
 
 ### Test Health Endpoint
 
@@ -73,6 +77,33 @@ Expected response:
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
+
+### Test Chat Streaming Endpoint
+
+Stream chat responses using Server-Sent Events (SSE):
+
+```bash
+curl -N -X POST http://localhost:3000/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'
+```
+
+The `-N` flag disables buffering so you can see events as they arrive.
+
+Expected SSE events:
+```
+event: meta
+data: {"ok":true,"cache":"miss"}
+
+event: token
+data: {"text":"Tema: demo\n"}
+
+event: done
+data: {"ok":true}
+```
+
+**Request Body:**
+- `message` (string, required): The chat message (max 200 characters)
 
 ## Docker
 

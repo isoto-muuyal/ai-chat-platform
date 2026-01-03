@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversations - Reporting</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+    .header {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .header h1 {
+      color: #333;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .header-nav {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .header-nav a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .header-nav a:hover {
+      text-decoration: underline;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .username {
+      color: #666;
+      font-size: 14px;
+    }
+    .logout-form {
+      display: inline;
+    }
+    .logout-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .logout-btn:hover {
+      background: #5568d3;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 40px auto;
+      padding: 0 40px;
+    }
+    .filters {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    .filters h2 {
+      color: #333;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .filter-group label {
+      color: #666;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-group input,
+    .filter-group select {
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .filter-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background: #d0d0d0;
+    }
+    .btn-export {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-export:hover {
+      background: #45a049;
+    }
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead {
+      background: #f8f9fa;
+    }
+    th {
+      text-align: left;
+      padding: 12px;
+      color: #666;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    td {
+      padding: 12px;
+      color: #333;
+      font-size: 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    tr:hover {
+      background: #f8f9fa;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-troll {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .badge-safe {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .link {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .link:hover {
+      text-decoration: underline;
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .pagination button {
+      padding: 8px 16px;
+      border: 2px solid #e0e0e0;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .pagination button:hover:not(:disabled) {
+      border-color: #667eea;
+      color: #667eea;
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .pagination-info {
+      color: #666;
+      font-size: 14px;
+    }
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+      font-size: 16px;
+    }
+    .error {
+      background: #fee;
+      border: 1px solid #fcc;
+      color: #c33;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Conversations Explorer</h1>
+    <div class="header-nav">
+      <a href="/">Dashboard</a>
+      <div class="user-info">
+        <span class="username">Welcome, <strong><%= username %></strong></span>
+        <form method="POST" action="/logout" class="logout-form">
+          <button type="submit" class="logout-btn">Logout</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="filters">
+      <h2>Filters</h2>
+      <form id="filter-form">
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label>Date From</label>
+            <input type="date" id="dateFrom" name="dateFrom">
+          </div>
+          <div class="filter-group">
+            <label>Date To</label>
+            <input type="date" id="dateTo" name="dateTo">
+          </div>
+          <div class="filter-group">
+            <label>Topic</label>
+            <input type="text" id="topic" name="topic" placeholder="Enter topic">
+          </div>
+          <div class="filter-group">
+            <label>Sentiment</label>
+            <select id="sentiment" name="sentiment">
+              <option value="">All</option>
+              <option value="positive">Positive</option>
+              <option value="neutral">Neutral</option>
+              <option value="negative">Negative</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>User ID</label>
+            <input type="text" id="userId" name="userId" placeholder="Enter user ID">
+          </div>
+          <div class="filter-group">
+            <label>Is Troll</label>
+            <select id="isTroll" name="isTroll">
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          <button type="button" class="btn btn-secondary" id="clear-filters">Clear</button>
+          <button type="button" class="btn btn-export" id="export-csv">Export CSV</button>
+          <button type="button" class="btn btn-export" id="export-xlsx">Export XLSX</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="loading" class="loading">Loading conversations...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="table-container" class="table-container" style="display: none;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Created At</th>
+            <th>User</th>
+            <th>Messages</th>
+            <th>Troll Messages</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="conversations-table">
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    const limit = 50;
+    let currentFilters = {};
+
+    function getQueryString(filters, page = 1) {
+      const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      return params.toString();
+    }
+
+    async function loadConversations(page = 1) {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('error').style.display = 'none';
+        document.getElementById('table-container').style.display = 'none';
+
+        const queryString = getQueryString(currentFilters, page);
+        const response = await fetch(`/api/conversations?${queryString}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('table-container').style.display = 'block';
+
+        const table = document.getElementById('conversations-table');
+        table.innerHTML = '';
+
+        if (data.conversations.length === 0) {
+          table.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #666;">No conversations found</td></tr>';
+        } else {
+          data.conversations.forEach(conv => {
+            const row = document.createElement('tr');
+            const date = new Date(conv.created_at).toLocaleString();
+            row.innerHTML = `
+              <td>${conv.id}</td>
+              <td>${date}</td>
+              <td>${escapeHtml(conv.username || `User ${conv.user_id}`)}</td>
+              <td>${conv.message_count}</td>
+              <td><span class="badge ${conv.troll_count > 0 ? 'badge-troll' : 'badge-safe'}">${conv.troll_count}</span></td>
+              <td><a href="/conversations/${conv.id}" class="link">View Details</a></td>
+            `;
+            table.appendChild(row);
+          });
+        }
+
+        // Update pagination
+        updatePagination(data.pagination);
+        currentPage = page;
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('error').textContent = 'Failed to load conversations: ' + error.message;
+      }
+    }
+
+    function updatePagination(pagination) {
+      const paginationEl = document.getElementById('pagination');
+      paginationEl.innerHTML = `
+        <button ${pagination.page === 1 ? 'disabled' : ''} onclick="loadConversations(${pagination.page - 1})">Previous</button>
+        <span class="pagination-info">Page ${pagination.page} of ${pagination.totalPages} (${pagination.total} total)</span>
+        <button ${pagination.page >= pagination.totalPages ? 'disabled' : ''} onclick="loadConversations(${pagination.page + 1})">Next</button>
+      `;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('filter-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      currentFilters = {
+        dateFrom: document.getElementById('dateFrom').value,
+        dateTo: document.getElementById('dateTo').value,
+        topic: document.getElementById('topic').value,
+        sentiment: document.getElementById('sentiment').value,
+        userId: document.getElementById('userId').value,
+        isTroll: document.getElementById('isTroll').value,
+      };
+      loadConversations(1);
+    });
+
+    document.getElementById('clear-filters').addEventListener('click', () => {
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      document.getElementById('topic').value = '';
+      document.getElementById('sentiment').value = '';
+      document.getElementById('userId').value = '';
+      document.getElementById('isTroll').value = '';
+      currentFilters = {};
+      loadConversations(1);
+    });
+
+    document.getElementById('export-csv').addEventListener('click', () => {
+      const queryString = getQueryString(currentFilters);
+      window.location.href = `/export/messages.csv?${queryString}`;
+    });
+
+    document.getElementById('export-xlsx').addEventListener('click', () => {
+      const queryString = getQueryString(currentFilters);
+      window.location.href = `/export/messages.xlsx?${queryString}`;
+    });
+
+    // Load conversations on page load
+    loadConversations(1);
+  </script>
+</body>
+</html>
+
