@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from '../src/app.js';
+import app from '../app.js';
 
 describe('POST /v1/chat/stream', () => {
   it('should stream SSE events in correct order: meta -> token -> done', async () => {

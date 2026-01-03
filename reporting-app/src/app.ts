@@ -12,6 +12,8 @@ import apiRouter from './routes/api.js';
 import apiConversationsRouter from './routes/api-conversations.js';
 import conversationsRouter from './routes/conversations.js';
 import exportRouter from './routes/export.js';
+import topicsRouter from './routes/topics.js';
+import trollRouter from './routes/troll.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,6 +52,8 @@ app.use('/api', apiRouter);
 app.use('/api', apiConversationsRouter);
 app.use('/export', exportRouter);
 app.use('/conversations', conversationsRouter);
+app.use('/topics', topicsRouter);
+app.use('/troll', trollRouter);
 app.use(indexRouter);
 
 // 404 handler

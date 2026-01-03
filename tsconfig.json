@@ -4,7 +4,7 @@
     "module": "ES2022",
     "lib": ["ES2022"],
     "moduleResolution": "node",
-    "rootDir": "./src",
+    "rootDir": "./chat-api",
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
@@ -19,7 +19,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["chat-api/**/*"],
+  "exclude": ["node_modules", "dist", "chat-api/test"]
 }
+
 

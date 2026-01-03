@@ -11,7 +11,7 @@ COPY tsconfig.json ./
 RUN npm ci
 
 # Copy source code
-COPY src ./src
+COPY chat-api ./chat-api
 
 # Build TypeScript
 RUN npm run build
@@ -39,4 +39,5 @@ USER nodejs
 EXPOSE 3000
 
 CMD ["node", "dist/server.js"]
+
 

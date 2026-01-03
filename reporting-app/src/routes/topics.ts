@@ -3,9 +3,12 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Protected dashboard route
-router.get('/', requireAuth, (req: Request, res: Response) => {
-  res.render('dashboard', {
+// All routes require authentication
+router.use(requireAuth);
+
+// Topics page
+router.get('/', (req: Request, res: Response) => {
+  res.render('topics', {
     username: req.session?.username || 'Admin',
   });
 });

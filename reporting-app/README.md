@@ -149,3 +149,4 @@ postgresql://username:password@host:port/database
 - The dashboard currently shows a welcome message
 - Session cookies are HTTP-only and secure in production mode
 
+

@@ -15,7 +15,7 @@ Production-ready Node.js backend built with Express, TypeScript, and ESM modules
 ## Project Structure
 
 ```
-src/
+chat-api/           # Chat API application
   app.ts            # Express app + middleware
   server.ts         # HTTP server + graceful shutdown
   config/
@@ -27,7 +27,10 @@ src/
     v1/
       chat.ts       # POST /v1/chat/stream endpoint
       index.ts      # v1 route aggregator
-test/               # Integration tests
+  test/             # Integration tests
+reporting-app/      # Reporting dashboard application
+  src/              # Reporting app source code
+  views/            # EJS templates
 ```
 
 ## Local Development

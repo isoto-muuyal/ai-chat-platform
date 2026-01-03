@@ -160,5 +160,188 @@ router.get('/overview', async (_req: Request, res: Response) => {
   }
 });
 
+// Get topics data with daily buckets for last 30 days
+router.get('/topics', async (req: Request, res: Response) => {
+  try {
+    const topN = parseInt(req.query.topN as string) || 10;
+    const days30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Get top N topics
+    const topTopicsResult = await pool.query(
+      `SELECT 
+        COALESCE(topic, 'Unknown') as topic,
+        COUNT(*)::int as total_count
+      FROM messages
+      WHERE topic IS NOT NULL
+        AND created_at >= $1
+      GROUP BY topic
+      ORDER BY total_count DESC
+      LIMIT $2`,
+      [days30, topN]
+    );
+
+    const topics = topTopicsResult.rows.map((row) => row.topic);
+
+    // Get daily buckets for each topic
+    const dailyData: Record<string, Array<{ date: string; count: number }>> = {};
+
+    for (const topic of topics) {
+      const dailyResult = await pool.query(
+        `SELECT 
+          created_at::date as date,
+          COUNT(*)::int as count
+        FROM messages
+        WHERE topic = $1
+          AND created_at >= $2
+        GROUP BY created_at::date
+        ORDER BY date ASC`,
+        [topic === 'Unknown' ? null : topic, days30]
+      );
+
+      dailyData[topic] = dailyResult.rows.map((row) => ({
+        date: row.date.toISOString().split('T')[0],
+        count: row.count,
+      }));
+    }
+
+    // Generate all dates for last 30 days
+    const allDates: string[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      allDates.push(date.toISOString().split('T')[0]);
+    }
+
+    // Fill in missing dates with 0
+    const filledData: Record<string, Array<{ date: string; count: number }>> = {};
+    topics.forEach((topic) => {
+      filledData[topic] = allDates.map((date) => {
+        const existing = dailyData[topic]?.find((d) => d.date === date);
+        return {
+          date,
+          count: existing?.count || 0,
+        };
+      });
+    });
+
+    res.json({
+      topics,
+      dailyData: filledData,
+      dates: allDates,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching topics data');
+    res.status(500).json({ error: 'Failed to fetch topics data' });
+  }
+});
+
+// Get troll data with daily buckets for last 30 days
+router.get('/troll', async (req: Request, res: Response) => {
+  try {
+    const topN = parseInt(req.query.topN as string) || 10;
+    const days30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Get daily troll rate and counts
+    const dailyTrollResult = await pool.query(
+      `SELECT 
+        created_at::date as date,
+        COUNT(*)::int as total_messages,
+        COUNT(*) FILTER (WHERE is_troll = true)::int as troll_messages,
+        CASE 
+          WHEN COUNT(*) = 0 THEN 0
+          ELSE (COUNT(*) FILTER (WHERE is_troll = true)::float / COUNT(*)::float * 100)
+        END as troll_rate
+      FROM messages
+      WHERE created_at >= $1
+      GROUP BY created_at::date
+      ORDER BY date ASC`,
+      [days30]
+    );
+
+    // Get top N topics with most troll messages
+    const topTrollTopicsResult = await pool.query(
+      `SELECT 
+        COALESCE(topic, 'Unknown') as topic,
+        COUNT(*) FILTER (WHERE is_troll = true)::int as troll_count,
+        COUNT(*)::int as total_count
+      FROM messages
+      WHERE created_at >= $1
+        AND topic IS NOT NULL
+      GROUP BY topic
+      ORDER BY troll_count DESC
+      LIMIT $2`,
+      [days30, topN]
+    );
+
+    // Get daily buckets for top troll topics
+    const topics = topTrollTopicsResult.rows.map((row) => row.topic);
+    const dailyTopicData: Record<string, Array<{ date: string; count: number }>> = {};
+
+    for (const topic of topics) {
+      const dailyResult = await pool.query(
+        `SELECT 
+          created_at::date as date,
+          COUNT(*) FILTER (WHERE is_troll = true)::int as count
+        FROM messages
+        WHERE topic = $1
+          AND created_at >= $2
+        GROUP BY created_at::date
+        ORDER BY date ASC`,
+        [topic === 'Unknown' ? null : topic, days30]
+      );
+
+      dailyTopicData[topic] = dailyResult.rows.map((row) => ({
+        date: row.date.toISOString().split('T')[0],
+        count: row.count,
+      }));
+    }
+
+    // Generate all dates for last 30 days
+    const allDates: string[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      allDates.push(date.toISOString().split('T')[0]);
+    }
+
+    // Fill in missing dates with 0 for daily troll data
+    const filledDailyTroll = allDates.map((date) => {
+      const existing = dailyTrollResult.rows.find(
+        (row) => row.date.toISOString().split('T')[0] === date
+      );
+      return {
+        date,
+        totalMessages: existing?.total_messages || 0,
+        trollMessages: existing?.troll_messages || 0,
+        trollRate: existing ? parseFloat(existing.troll_rate) : 0,
+      };
+    });
+
+    // Fill in missing dates for topic data
+    const filledTopicData: Record<string, Array<{ date: string; count: number }>> = {};
+    topics.forEach((topic) => {
+      filledTopicData[topic] = allDates.map((date) => {
+        const existing = dailyTopicData[topic]?.find((d) => d.date === date);
+        return {
+          date,
+          count: existing?.count || 0,
+        };
+      });
+    });
+
+    res.json({
+      dailyTroll: filledDailyTroll,
+      topTrollTopics: topTrollTopicsResult.rows.map((row) => ({
+        topic: row.topic,
+        trollCount: row.troll_count,
+        totalCount: row.total_count,
+      })),
+      dailyTopicData: filledTopicData,
+      dates: allDates,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching troll data');
+    res.status(500).json({ error: 'Failed to fetch troll data' });
+  }
+});
+
 export default router;
 
