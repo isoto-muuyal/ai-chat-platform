@@ -1,40 +1,33 @@
 # Reporting Dashboard
 
-A Node.js 20 + Express + EJS application for reporting and analytics.
+A React-based reporting dashboard with Express backend for analyzing chat platform data.
 
 ## Tech Stack
 
-- **Node.js 20**
-- **Express** - Web framework
-- **EJS** - Template engine
-- **TypeScript** - Type safety
-- **PostgreSQL** - Database
-- **Express Session** - Session management
-- **Zod** - Environment variable validation
-- **Pino** - High-performance logging
-- **ESM Modules** - Modern JavaScript modules
+- **Frontend**: React 18 + TypeScript + Vite
+- **Backend**: Node.js 20 + Express + TypeScript
+- **Database**: PostgreSQL (via node-postgres)
+- **Charts**: Chart.js with react-chartjs-2
+- **Authentication**: Session-based (express-session)
+- **Exports**: CSV + XLSX (exceljs)
 
 ## Project Structure
 
 ```
 reporting-app/
   src/
-    app.ts            # Express app + middleware
-    server.ts         # HTTP server + graceful shutdown
-    config/
-      env.ts          # Environment validation and config
-      logger.ts       # Pino logger configuration
-      db.ts           # PostgreSQL connection
-    middleware/
-      auth.ts         # Session authentication middleware
-    routes/
-      login.ts        # Login/logout routes
-      health.ts       # /healthz endpoint
-      index.ts        # Dashboard route
-  views/              # EJS templates
-    login.ejs         # Login page
-    dashboard.ejs     # Dashboard page
-    error.ejs         # Error page
+    components/        # React components
+    contexts/          # React contexts (Auth)
+    pages/             # Page components
+    routes/            # Express API routes
+    config/            # Configuration (env, db, logger)
+    middleware/        # Express middleware
+    app.ts             # Express app setup
+    server.ts          # HTTP server
+    main.tsx           # React entry point
+    App.tsx            # React app router
+  dist/                # Build output (frontend + backend)
+  index.html           # HTML template
 ```
 
 ## Prerequisites
@@ -43,11 +36,12 @@ reporting-app/
 - PostgreSQL database
 - npm
 
-## Setup
+## Local Development
+
+### Setup
 
 1. Install dependencies:
    ```bash
-   cd reporting-app
    npm install
    ```
 
@@ -61,19 +55,91 @@ reporting-app/
    - Set `ADMIN_USER` and `ADMIN_PASS` for login credentials
    - Set `SESSION_SECRET` to a secure random string (min 32 characters)
 
-4. Start the development server:
+4. Start development servers (Vite + Express):
    ```bash
    npm run dev
    ```
 
-The server will start on `http://localhost:3001` (or the PORT specified in `.env`).
+   This runs:
+   - Frontend: http://localhost:5173 (Vite dev server)
+   - Backend: http://localhost:3001 (Express API)
 
-## Available Scripts
+   The Vite dev server proxies `/api` requests to the backend.
 
-- `npm run dev` - Start development server with hot reload (tsx watch)
-- `npm run build` - Build TypeScript to JavaScript
-- `npm run start` - Start production server (requires build first)
+### Available Scripts
+
+- `npm run dev` - Run both frontend and backend in development mode
+- `npm run dev:frontend` - Run only Vite dev server
+- `npm run dev:backend` - Run only Express backend
+- `npm run build` - Build both frontend and backend for production
+- `npm run build:frontend` - Build only React app
+- `npm run build:backend` - Build only Express backend
+- `npm start` - Start production server (requires build first)
 - `npm run lint` - Run ESLint
+
+## Production Build
+
+1. Build the application:
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+   ```bash
+   npm start
+   ```
+
+   The server will serve the React app and API on port 3001 (or PORT from .env).
+
+## Docker
+
+### Build and Run
+
+1. Build the Docker image:
+   ```bash
+   docker build -t reporting-app .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -p 3001:3001 \
+    -e PORT=3001 \
+    -e DB_URL=postgresql://user:pass@host:5432/db \
+    -e ADMIN_USER=admin \
+    -e ADMIN_PASS=changeme \
+    -e SESSION_SECRET=your-secret-min-32-chars \
+    -e LOG_LEVEL=info \
+    -e NODE_ENV=production \
+    reporting-app
+   ```
+
+### Using Docker Compose
+
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  reporting-app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_URL=${DB_URL}
+      - ADMIN_USER=${ADMIN_USER}
+      - ADMIN_PASS=${ADMIN_PASS}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+    restart: unless-stopped
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
 
 ## Environment Variables
 
@@ -85,68 +151,61 @@ The server will start on `http://localhost:3001` (or the PORT specified in `.env
 - `ADMIN_PASS` - Admin password for login (required)
 - `SESSION_SECRET` - Secret key for session encryption (min 32 characters)
 
-## Endpoints
+## API Endpoints
 
-### Public Endpoints
+All API endpoints require authentication (except `/api/auth/login`).
 
-- `GET /healthz` - Health check endpoint (includes database connection status)
-- `GET /login` - Login page
-- `POST /login` - Login form submission
+### Authentication
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
 
-### Protected Endpoints
+### Data
+- `GET /api/overview?days=7|30|90` - Dashboard overview
+- `GET /api/topics?days=30` - Topics list
+- `GET /api/topics/timeseries?days=30&top=5` - Topics timeseries
+- `GET /api/troll?days=30` - Troll analysis
+- `GET /api/users?days=90` - Users list
+- `GET /api/conversations?from=&to=&topic=&sentiment=&user=&is_troll=&page=&pageSize=` - Conversations list
+- `GET /api/conversations/:id` - Conversation detail
 
-- `GET /` - Dashboard (requires authentication)
-- `POST /logout` - Logout
+### Exports
+- `GET /api/export/messages.csv` - Export messages as CSV
+- `GET /api/export/messages.xlsx` - Export messages as XLSX
+- `GET /api/export/topics.xlsx?days=30` - Export topics as XLSX
 
-## Health Check
+## Database Schema
 
-Test the health endpoint:
+The application expects the following tables:
 
-```bash
-curl http://localhost:3001/healthz
-```
+- `conversations` (id uuid pk, roblox_user_id bigint, roblox_username text, started_at timestamp, last_message_at timestamp, topic text, sentiment text)
+- `messages` (id uuid pk, conversation_id uuid fk, sender text, content text, created_at timestamp, is_troll boolean)
+- `analytics` (id uuid pk, roblox_user_id bigint, country text, inferred_age_range text, created_at timestamp)
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "database": "connected"
-}
-```
-
-## Authentication
-
-The application uses session-based authentication. After logging in with valid credentials, a session cookie is set and you'll be redirected to the dashboard.
-
-To logout, click the "Logout" button in the dashboard header or POST to `/logout`.
+**Note**: The application does NOT create tables or migrations. Ensure your database schema is set up before running the application.
 
 ## Features
 
-- ✅ TypeScript with strict type checking
-- ✅ ESM modules support
+- ✅ React 18 with TypeScript
+- ✅ Vite for fast development and building
+- ✅ Express backend with TypeScript
 - ✅ Session-based authentication
-- ✅ PostgreSQL database connection
-- ✅ Environment variable validation with Zod
-- ✅ Structured logging with Pino
-- ✅ Graceful shutdown (SIGINT/SIGTERM)
-- ✅ Error handling middleware
-- ✅ Health check endpoint with database status
-- ✅ EJS templating for views
+- ✅ PostgreSQL database integration
+- ✅ Chart.js visualizations
+- ✅ CSV and XLSX exports
+- ✅ Responsive design
+- ✅ Parameterized SQL queries (SQL injection protection)
+- ✅ UTC timezone handling
+- ✅ Query parameter validation with Zod
+- ✅ CORS configured for same-origin
+- ✅ Production-ready Docker setup
 
-## Database Connection
+## Pages
 
-The application connects to PostgreSQL using the `DB_URL` environment variable. The connection is tested on startup, and the server will not start if the database connection fails.
-
-Example `DB_URL` format:
-```
-postgresql://username:password@host:port/database
-```
-
-## Notes
-
-- Charts and reporting features are not yet implemented
-- The dashboard currently shows a welcome message
-- Session cookies are HTTP-only and secure in production mode
-
-
+1. **Login** (`/login`) - Admin login page
+2. **Dashboard** (`/dashboard`) - Overview with totals, metrics, top topics, sentiment
+3. **Topics** (`/topics`) - Topic analysis with timeseries charts
+4. **Troll** (`/troll`) - Troll analysis with charts
+5. **Users** (`/users`) - User list with analytics data
+6. **Conversations** (`/conversations`) - Conversation explorer with filters
+7. **Conversation Detail** (`/conversations/:id`) - Message timeline for a conversation

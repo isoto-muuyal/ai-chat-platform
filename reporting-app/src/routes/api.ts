@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -8,79 +9,60 @@ const router = Router();
 // All API routes require authentication
 router.use(requireAuth);
 
-interface Totals {
-  conversations: number;
-  messages: number;
-  users: number;
-}
+// Query param validation schemas
+const daysSchema = z.enum(['7', '30', '90']).transform(Number);
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-interface OverviewData {
-  totals: {
-    last7Days: Totals;
-    last30Days: Totals;
-    last90Days: Totals;
-  };
-  metrics: {
-    trollRate: number;
-    avgMessagesPerConversation: number;
-  };
-  topTopics: Array<{
-    topic: string;
-    count: number;
-  }>;
-  sentiment: {
-    positive: number;
-    neutral: number;
-    negative: number;
-  };
-}
-
-router.get('/overview', async (_req: Request, res: Response) => {
+// GET /api/overview?days=7|30|90
+router.get('/overview', async (req: Request, res: Response) => {
   try {
-    const now = new Date();
-    const days7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const days30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const days90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const days = parseInt(req.query.days as string) || 90;
+    if (![7, 30, 90].includes(days)) {
+      return res.status(400).json({ error: 'days must be 7, 30, or 90' });
+    }
 
-    // Get totals for last 7 days
-    const totals7Days = await Promise.all([
-      pool.query('SELECT COUNT(*)::int as count FROM conversations WHERE created_at >= $1', [days7]),
-      pool.query('SELECT COUNT(*)::int as count FROM messages WHERE created_at >= $1', [days7]),
-      pool.query('SELECT COUNT(*)::int as count FROM users WHERE created_at >= $1', [days7]),
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+    cutoff.setUTCHours(0, 0, 0, 0);
+
+    // Get totals
+    const [conversationsResult, messagesResult, usersResult] = await Promise.all([
+      pool.query(
+        'SELECT COUNT(*)::int as count FROM conversations WHERE started_at >= $1',
+        [cutoff]
+      ),
+      pool.query(
+        'SELECT COUNT(*)::int as count FROM messages WHERE created_at >= $1',
+        [cutoff]
+      ),
+      pool.query(
+        'SELECT COUNT(DISTINCT roblox_user_id)::int as count FROM conversations WHERE started_at >= $1',
+        [cutoff]
+      ),
     ]);
 
-    // Get totals for last 30 days
-    const totals30Days = await Promise.all([
-      pool.query('SELECT COUNT(*)::int as count FROM conversations WHERE created_at >= $1', [days30]),
-      pool.query('SELECT COUNT(*)::int as count FROM messages WHERE created_at >= $1', [days30]),
-      pool.query('SELECT COUNT(*)::int as count FROM users WHERE created_at >= $1', [days30]),
-    ]);
-
-    // Get totals for last 90 days
-    const totals90Days = await Promise.all([
-      pool.query('SELECT COUNT(*)::int as count FROM conversations WHERE created_at >= $1', [days90]),
-      pool.query('SELECT COUNT(*)::int as count FROM messages WHERE created_at >= $1', [days90]),
-      pool.query('SELECT COUNT(*)::int as count FROM users WHERE created_at >= $1', [days90]),
-    ]);
-
-    // Get troll rate (percentage of messages marked as troll)
+    // Get troll rate
     const trollRateResult = await pool.query(
       `SELECT 
         CASE 
           WHEN COUNT(*) = 0 THEN 0
           ELSE (COUNT(*) FILTER (WHERE is_troll = true)::float / COUNT(*)::float * 100)
         END as troll_rate
-      FROM messages`
+      FROM messages
+      WHERE created_at >= $1`,
+      [cutoff]
     );
 
-    // Get average messages per conversation
+    // Get avg messages per conversation
     const avgMessagesResult = await pool.query(
       `SELECT 
         CASE 
           WHEN COUNT(DISTINCT conversation_id) = 0 THEN 0
           ELSE COUNT(*)::float / COUNT(DISTINCT conversation_id)::float
         END as avg_messages
-      FROM messages`
+      FROM messages
+      WHERE created_at >= $1`,
+      [cutoff]
     );
 
     // Get top 10 topics
@@ -88,12 +70,13 @@ router.get('/overview', async (_req: Request, res: Response) => {
       `SELECT 
         COALESCE(topic, 'Unknown') as topic,
         COUNT(*)::int as count
-      FROM messages
-      WHERE topic IS NOT NULL
+      FROM conversations
+      WHERE started_at >= $1
+        AND topic IS NOT NULL
       GROUP BY topic
       ORDER BY count DESC
-      LIMIT $1`,
-      [10]
+      LIMIT $2`,
+      [cutoff, 10]
     );
 
     // Get sentiment breakdown
@@ -101,12 +84,12 @@ router.get('/overview', async (_req: Request, res: Response) => {
       `SELECT 
         sentiment,
         COUNT(*)::int as count
-      FROM messages
-      WHERE sentiment IS NOT NULL
+      FROM conversations
+      WHERE started_at >= $1
+        AND sentiment IS NOT NULL
       GROUP BY sentiment`
     );
 
-    // Build sentiment object
     const sentiment: { positive: number; neutral: number; negative: number } = {
       positive: 0,
       neutral: 0,
@@ -115,32 +98,16 @@ router.get('/overview', async (_req: Request, res: Response) => {
 
     sentimentResult.rows.forEach((row) => {
       const sent = row.sentiment?.toLowerCase();
-      if (sent === 'positive') {
-        sentiment.positive = row.count;
-      } else if (sent === 'neutral') {
-        sentiment.neutral = row.count;
-      } else if (sent === 'negative') {
-        sentiment.negative = row.count;
-      }
+      if (sent === 'positive') sentiment.positive = row.count;
+      else if (sent === 'neutral') sentiment.neutral = row.count;
+      else if (sent === 'negative') sentiment.negative = row.count;
     });
 
-    const data: OverviewData = {
+    res.json({
       totals: {
-        last7Days: {
-          conversations: totals7Days[0].rows[0]?.count || 0,
-          messages: totals7Days[1].rows[0]?.count || 0,
-          users: totals7Days[2].rows[0]?.count || 0,
-        },
-        last30Days: {
-          conversations: totals30Days[0].rows[0]?.count || 0,
-          messages: totals30Days[1].rows[0]?.count || 0,
-          users: totals30Days[2].rows[0]?.count || 0,
-        },
-        last90Days: {
-          conversations: totals90Days[0].rows[0]?.count || 0,
-          messages: totals90Days[1].rows[0]?.count || 0,
-          users: totals90Days[2].rows[0]?.count || 0,
-        },
+        conversations: conversationsResult.rows[0]?.count || 0,
+        messages: messagesResult.rows[0]?.count || 0,
+        users: usersResult.rows[0]?.count || 0,
       },
       metrics: {
         trollRate: parseFloat(trollRateResult.rows[0]?.troll_rate || '0'),
@@ -151,190 +118,179 @@ router.get('/overview', async (_req: Request, res: Response) => {
         count: row.count,
       })),
       sentiment,
-    };
-
-    res.json(data);
+    });
   } catch (err) {
-    logger.error({ err }, 'Error fetching overview data');
-    res.status(500).json({ error: 'Failed to fetch overview data' });
+    logger.error({ err }, 'Error fetching overview');
+    res.status(500).json({ error: 'Failed to fetch overview' });
   }
 });
 
-// Get topics data with daily buckets for last 30 days
+// GET /api/topics?days=30
 router.get('/topics', async (req: Request, res: Response) => {
   try {
-    const topN = parseInt(req.query.topN as string) || 10;
-    const days30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const days = parseInt(req.query.days as string) || 30;
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+    cutoff.setUTCHours(0, 0, 0, 0);
+
+    const result = await pool.query(
+      `SELECT 
+        COALESCE(topic, 'Unknown') as topic,
+        COUNT(*)::int as count,
+        ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM conversations WHERE started_at >= $1)::float * 100, 2) as share
+      FROM conversations
+      WHERE started_at >= $1
+      GROUP BY topic
+      ORDER BY count DESC`,
+      [cutoff]
+    );
+
+    res.json(
+      result.rows.map((row) => ({
+        topic: row.topic,
+        count: row.count,
+        share: parseFloat(row.share || '0'),
+      }))
+    );
+  } catch (err) {
+    logger.error({ err }, 'Error fetching topics');
+    res.status(500).json({ error: 'Failed to fetch topics' });
+  }
+});
+
+// GET /api/topics/timeseries?days=30&top=5
+router.get('/topics/timeseries', async (req: Request, res: Response) => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const top = parseInt(req.query.top as string) || 5;
+
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+    cutoff.setUTCHours(0, 0, 0, 0);
 
     // Get top N topics
     const topTopicsResult = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic,
-        COUNT(*)::int as total_count
-      FROM messages
-      WHERE topic IS NOT NULL
-        AND created_at >= $1
+        COALESCE(topic, 'Unknown') as topic
+      FROM conversations
+      WHERE started_at >= $1
+        AND topic IS NOT NULL
       GROUP BY topic
-      ORDER BY total_count DESC
+      ORDER BY COUNT(*) DESC
       LIMIT $2`,
-      [days30, topN]
+      [cutoff, top]
     );
 
     const topics = topTopicsResult.rows.map((row) => row.topic);
 
-    // Get daily buckets for each topic
+    // Get daily data for each topic
     const dailyData: Record<string, Array<{ date: string; count: number }>> = {};
 
     for (const topic of topics) {
-      const dailyResult = await pool.query(
+      const result = await pool.query(
         `SELECT 
-          created_at::date as date,
+          (started_at AT TIME ZONE 'UTC')::date::text as date,
           COUNT(*)::int as count
-        FROM messages
+        FROM conversations
         WHERE topic = $1
-          AND created_at >= $2
-        GROUP BY created_at::date
+          AND started_at >= $2
+        GROUP BY (started_at AT TIME ZONE 'UTC')::date
         ORDER BY date ASC`,
-        [topic === 'Unknown' ? null : topic, days30]
+        [topic === 'Unknown' ? null : topic, cutoff]
       );
 
-      dailyData[topic] = dailyResult.rows.map((row) => ({
-        date: row.date.toISOString().split('T')[0],
+      dailyData[topic] = result.rows.map((row) => ({
+        date: row.date,
         count: row.count,
       }));
     }
 
-    // Generate all dates for last 30 days
+    // Generate all dates
     const allDates: string[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - i);
+      date.setUTCHours(0, 0, 0, 0);
       allDates.push(date.toISOString().split('T')[0]);
     }
 
-    // Fill in missing dates with 0
+    // Fill missing dates
     const filledData: Record<string, Array<{ date: string; count: number }>> = {};
     topics.forEach((topic) => {
       filledData[topic] = allDates.map((date) => {
         const existing = dailyData[topic]?.find((d) => d.date === date);
-        return {
-          date,
-          count: existing?.count || 0,
-        };
+        return { date, count: existing?.count || 0 };
       });
     });
 
-    res.json({
-      topics,
-      dailyData: filledData,
-      dates: allDates,
-    });
+    res.json({ topics, dailyData: filledData, dates: allDates });
   } catch (err) {
-    logger.error({ err }, 'Error fetching topics data');
-    res.status(500).json({ error: 'Failed to fetch topics data' });
+    logger.error({ err }, 'Error fetching topics timeseries');
+    res.status(500).json({ error: 'Failed to fetch topics timeseries' });
   }
 });
 
-// Get troll data with daily buckets for last 30 days
+// GET /api/troll?days=30
 router.get('/troll', async (req: Request, res: Response) => {
   try {
-    const topN = parseInt(req.query.topN as string) || 10;
-    const days30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const days = parseInt(req.query.days as string) || 30;
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+    cutoff.setUTCHours(0, 0, 0, 0);
 
-    // Get daily troll rate and counts
-    const dailyTrollResult = await pool.query(
+    // Daily troll data
+    const dailyResult = await pool.query(
       `SELECT 
-        created_at::date as date,
+        (created_at AT TIME ZONE 'UTC')::date::text as date,
         COUNT(*)::int as total_messages,
-        COUNT(*) FILTER (WHERE is_troll = true)::int as troll_messages,
-        CASE 
-          WHEN COUNT(*) = 0 THEN 0
-          ELSE (COUNT(*) FILTER (WHERE is_troll = true)::float / COUNT(*)::float * 100)
-        END as troll_rate
+        COUNT(*) FILTER (WHERE is_troll = true)::int as troll_messages
       FROM messages
       WHERE created_at >= $1
-      GROUP BY created_at::date
+      GROUP BY (created_at AT TIME ZONE 'UTC')::date
       ORDER BY date ASC`,
-      [days30]
+      [cutoff]
     );
 
-    // Get top N topics with most troll messages
+    // Top trolling topics
     const topTrollTopicsResult = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic,
-        COUNT(*) FILTER (WHERE is_troll = true)::int as troll_count,
-        COUNT(*)::int as total_count
-      FROM messages
-      WHERE created_at >= $1
-        AND topic IS NOT NULL
-      GROUP BY topic
+        COALESCE(c.topic, 'Unknown') as topic,
+        COUNT(*) FILTER (WHERE m.is_troll = true)::int as troll_count
+      FROM messages m
+      JOIN conversations c ON m.conversation_id = c.id
+      WHERE m.created_at >= $1
+        AND m.is_troll = true
+      GROUP BY c.topic
       ORDER BY troll_count DESC
-      LIMIT $2`,
-      [days30, topN]
+      LIMIT 10`,
+      [cutoff]
     );
 
-    // Get daily buckets for top troll topics
-    const topics = topTrollTopicsResult.rows.map((row) => row.topic);
-    const dailyTopicData: Record<string, Array<{ date: string; count: number }>> = {};
-
-    for (const topic of topics) {
-      const dailyResult = await pool.query(
-        `SELECT 
-          created_at::date as date,
-          COUNT(*) FILTER (WHERE is_troll = true)::int as count
-        FROM messages
-        WHERE topic = $1
-          AND created_at >= $2
-        GROUP BY created_at::date
-        ORDER BY date ASC`,
-        [topic === 'Unknown' ? null : topic, days30]
-      );
-
-      dailyTopicData[topic] = dailyResult.rows.map((row) => ({
-        date: row.date.toISOString().split('T')[0],
-        count: row.count,
-      }));
-    }
-
-    // Generate all dates for last 30 days
+    // Generate all dates
     const allDates: string[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - i);
+      date.setUTCHours(0, 0, 0, 0);
       allDates.push(date.toISOString().split('T')[0]);
     }
 
-    // Fill in missing dates with 0 for daily troll data
-    const filledDailyTroll = allDates.map((date) => {
-      const existing = dailyTrollResult.rows.find(
-        (row) => row.date.toISOString().split('T')[0] === date
-      );
+    // Fill daily data
+    const filledDaily = allDates.map((date) => {
+      const existing = dailyResult.rows.find((row) => row.date === date);
       return {
         date,
         totalMessages: existing?.total_messages || 0,
         trollMessages: existing?.troll_messages || 0,
-        trollRate: existing ? parseFloat(existing.troll_rate) : 0,
       };
     });
 
-    // Fill in missing dates for topic data
-    const filledTopicData: Record<string, Array<{ date: string; count: number }>> = {};
-    topics.forEach((topic) => {
-      filledTopicData[topic] = allDates.map((date) => {
-        const existing = dailyTopicData[topic]?.find((d) => d.date === date);
-        return {
-          date,
-          count: existing?.count || 0,
-        };
-      });
-    });
-
     res.json({
-      dailyTroll: filledDailyTroll,
+      daily: filledDaily,
       topTrollTopics: topTrollTopicsResult.rows.map((row) => ({
         topic: row.topic,
-        trollCount: row.troll_count,
-        totalCount: row.total_count,
+        count: row.troll_count,
       })),
-      dailyTopicData: filledTopicData,
       dates: allDates,
     });
   } catch (err) {
@@ -343,5 +299,224 @@ router.get('/troll', async (req: Request, res: Response) => {
   }
 });
 
-export default router;
+// GET /api/users?days=90
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const days = parseInt(req.query.days as string) || 90;
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+    cutoff.setUTCHours(0, 0, 0, 0);
 
+    const result = await pool.query(
+      `SELECT 
+        c.roblox_user_id,
+        c.roblox_username,
+        COUNT(DISTINCT m.id)::int as message_count,
+        COUNT(DISTINCT c.id)::int as conversation_count,
+        MAX(c.last_message_at) as last_seen,
+        a.country,
+        a.inferred_age_range
+      FROM conversations c
+      LEFT JOIN messages m ON m.conversation_id = c.id
+      LEFT JOIN analytics a ON a.roblox_user_id = c.roblox_user_id
+      WHERE c.started_at >= $1
+      GROUP BY c.roblox_user_id, c.roblox_username, a.country, a.inferred_age_range
+      ORDER BY last_seen DESC`,
+      [cutoff]
+    );
+
+    res.json(
+      result.rows.map((row) => ({
+        robloxUserId: row.roblox_user_id?.toString(),
+        robloxUsername: row.roblox_username,
+        messageCount: row.message_count,
+        conversationCount: row.conversation_count,
+        lastSeen: row.last_seen,
+        country: row.country,
+        inferredAgeRange: row.inferred_age_range,
+      }))
+    );
+  } catch (err) {
+    logger.error({ err }, 'Error fetching users');
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// GET /api/conversations?from=YYYY-MM-DD&to=YYYY-MM-DD&topic=&sentiment=&user=&is_troll=&page=&pageSize=
+router.get('/conversations', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 50;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (req.query.from) {
+      const fromDate = new Date(req.query.from as string);
+      fromDate.setUTCHours(0, 0, 0, 0);
+      conditions.push(`c.started_at >= $${paramIndex}`);
+      params.push(fromDate);
+      paramIndex++;
+    }
+
+    if (req.query.to) {
+      const toDate = new Date(req.query.to as string);
+      toDate.setUTCHours(23, 59, 59, 999);
+      conditions.push(`c.started_at <= $${paramIndex}`);
+      params.push(toDate);
+      paramIndex++;
+    }
+
+    if (req.query.topic) {
+      conditions.push(`c.topic = $${paramIndex}`);
+      params.push(req.query.topic);
+      paramIndex++;
+    }
+
+    if (req.query.sentiment) {
+      conditions.push(`c.sentiment = $${paramIndex}`);
+      params.push(req.query.sentiment);
+      paramIndex++;
+    }
+
+    if (req.query.user) {
+      const userStr = req.query.user as string;
+      if (!isNaN(Number(userStr))) {
+        conditions.push(`c.roblox_user_id = $${paramIndex}`);
+        params.push(BigInt(userStr));
+      } else {
+        conditions.push(`c.roblox_username ILIKE $${paramIndex}`);
+        params.push(`%${userStr}%`);
+      }
+      paramIndex++;
+    }
+
+    if (req.query.is_troll !== undefined) {
+      const isTroll = req.query.is_troll === 'true' || req.query.is_troll === '1';
+      conditions.push(`EXISTS (
+        SELECT 1 FROM messages m 
+        WHERE m.conversation_id = c.id AND m.is_troll = $${paramIndex}
+      )`);
+      params.push(isTroll);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get total count
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int as total FROM conversations c ${whereClause}`,
+      params
+    );
+    const total = countResult.rows[0]?.total || 0;
+
+    // Get conversations
+    params.push(pageSize, offset);
+    const result = await pool.query(
+      `SELECT 
+        c.id,
+        c.roblox_user_id,
+        c.roblox_username,
+        c.started_at,
+        c.last_message_at,
+        c.topic,
+        c.sentiment,
+        COUNT(m.id)::int as message_count
+      FROM conversations c
+      LEFT JOIN messages m ON m.conversation_id = c.id
+      ${whereClause}
+      GROUP BY c.id, c.roblox_user_id, c.roblox_username, c.started_at, c.last_message_at, c.topic, c.sentiment
+      ORDER BY c.started_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      params
+    );
+
+    res.json({
+      conversations: result.rows.map((row) => ({
+        id: row.id,
+        robloxUserId: row.roblox_user_id?.toString(),
+        robloxUsername: row.roblox_username,
+        startedAt: row.started_at,
+        lastMessageAt: row.last_message_at,
+        topic: row.topic,
+        sentiment: row.sentiment,
+        messageCount: row.message_count,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching conversations');
+    res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
+});
+
+// GET /api/conversations/:id
+router.get('/conversations/:id', async (req: Request, res: Response) => {
+  try {
+    const conversationId = req.params.id;
+
+    // Get conversation
+    const convResult = await pool.query(
+      `SELECT 
+        id,
+        roblox_user_id,
+        roblox_username,
+        started_at,
+        last_message_at,
+        topic,
+        sentiment
+      FROM conversations
+      WHERE id = $1`,
+      [conversationId]
+    );
+
+    if (convResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Get messages
+    const messagesResult = await pool.query(
+      `SELECT 
+        id,
+        sender,
+        content,
+        created_at,
+        is_troll
+      FROM messages
+      WHERE conversation_id = $1
+      ORDER BY created_at ASC`,
+      [conversationId]
+    );
+
+    res.json({
+      conversation: {
+        id: convResult.rows[0].id,
+        robloxUserId: convResult.rows[0].roblox_user_id?.toString(),
+        robloxUsername: convResult.rows[0].roblox_username,
+        startedAt: convResult.rows[0].started_at,
+        lastMessageAt: convResult.rows[0].last_message_at,
+        topic: convResult.rows[0].topic,
+        sentiment: convResult.rows[0].sentiment,
+      },
+      messages: messagesResult.rows.map((row) => ({
+        id: row.id,
+        sender: row.sender,
+        content: row.content,
+        createdAt: row.created_at,
+        isTroll: row.is_troll,
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching conversation');
+    res.status(500).json({ error: 'Failed to fetch conversation' });
+  }
+});
+
+export default router;
