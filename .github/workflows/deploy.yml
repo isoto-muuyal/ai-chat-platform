@@ -1,0 +1,47 @@
+name: deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push API
+        run: |
+          docker build -t llm-chat-api ./api
+          docker tag llm-chat-api:latest ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
+          docker push ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
+
+      - name: Build & push Reporting
+        run: |
+          docker build -t reporting-app ./reporting-app
+          docker tag reporting-app:latest ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
+          docker push ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/apps/llm-chat-backend
+            docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REGISTRY }}
+            docker pull ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
+            docker pull ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
+            docker compose up -d
+            docker image prune -f
+
