@@ -21,7 +21,7 @@ jobs:
 
       - name: Build & push API
         run: |
-          docker build -t llm-chat-api ./api
+          docker build -t llm-chat-api ./chat-api
           docker tag llm-chat-api:latest ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
           docker push ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
 
