@@ -21,13 +21,13 @@ jobs:
 
       - name: Build & push API
         run: |
-          docker build -t llm-chat-api ./chat-api
+          docker build -t llm-chat-api ./ai-chat-platform/chat-api
           docker tag llm-chat-api:latest ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
           docker push ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
 
       - name: Build & push Reporting
         run: |
-          docker build -t reporting-app ./reporting-app
+          docker build -t reporting-app ./ai-chat-platform/reporting-app
           docker tag reporting-app:latest ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
           docker push ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
 
@@ -38,7 +38,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/apps/llm-chat-backend
+            cd ~/apps/ai-chat-backend
             docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REGISTRY }}
             docker pull ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
             docker pull ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
