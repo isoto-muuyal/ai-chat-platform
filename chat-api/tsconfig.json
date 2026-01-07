@@ -4,11 +4,13 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-    "include": ["*.ts", "routes/**/*.ts", "config/**/*.ts"]
+    "include": ["*.ts", "routes/**/*.ts", "config/**/*.ts"],
+    "exclude": ["node_modules", "dist", "test"]
+
 }
 
