@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +27,7 @@ try {
 } catch (error: unknown) {
   if (error instanceof z.ZodError) {
     console.error('❌ Invalid environment variables:');
-    error.errors.forEach((err: ZodIssue) => {
+    error.issues.forEach((err) => {
       console.error(`  ${err.path.join('.')}: ${err.message}`);
     });
     process.exit(1);
@@ -36,5 +36,4 @@ try {
 }
 
 export { env };
-
 

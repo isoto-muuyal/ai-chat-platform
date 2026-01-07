@@ -100,7 +100,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
     `;
     const conversationsResult = await pool.query(conversationsQuery, params);
 
-    res.json({
+    return res.json({
       conversations: conversationsResult.rows,
       pagination: {
         page,
@@ -111,7 +111,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error({ err }, 'Error fetching conversations');
-    res.status(500).json({ error: 'Failed to fetch conversations' });
+    return res.status(500).json({ error: 'Failed to fetch conversations' });
   }
 });
 
@@ -152,16 +152,15 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
     `;
     const messagesResult = await pool.query(messagesQuery, [conversationId]);
 
-    res.json({
+    return res.json({
       conversation: convResult.rows[0],
       messages: messagesResult.rows,
     });
   } catch (err) {
     logger.error({ err }, 'Error fetching conversation detail');
-    res.status(500).json({ error: 'Failed to fetch conversation detail' });
+    return res.status(500).json({ error: 'Failed to fetch conversation detail' });
   }
 });
 
 export default router;
-
 

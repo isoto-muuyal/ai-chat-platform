@@ -19,8 +19,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "chat-api", "reporting-app"]
 }
-
 

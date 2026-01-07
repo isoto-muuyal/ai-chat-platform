@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Line, Doughnut } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -144,4 +144,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

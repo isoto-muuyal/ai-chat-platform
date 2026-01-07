@@ -1,5 +1,5 @@
 import http from 'http';
-import app from './app.js';
+import app from './server-app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { testConnection } from './config/db.js';
@@ -69,5 +69,4 @@ testConnection()
     logger.fatal({ err }, 'Fatal error during startup');
     process.exit(1);
   });
-
 

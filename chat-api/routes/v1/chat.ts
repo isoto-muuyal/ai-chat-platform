@@ -17,7 +17,7 @@ router.post('/stream', (req: Request, res: Response) => {
   if (!validationResult.success) {
     return res.status(400).json({
       error: 'Validation failed',
-      details: validationResult.error.errors,
+      details: validationResult.error.issues,
     });
   }
 
@@ -44,5 +44,4 @@ router.post('/stream', (req: Request, res: Response) => {
 });
 
 export default router;
-
 

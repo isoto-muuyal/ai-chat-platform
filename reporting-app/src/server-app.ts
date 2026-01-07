@@ -34,7 +34,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
-  next();
+  return next();
 });
 
 // Session middleware
@@ -62,8 +62,8 @@ app.use(healthRouter);
 if (env.NODE_ENV === 'production') {
   const publicPath = join(__dirname, '../dist/public');
   app.use(express.static(publicPath));
-  app.get('*', (req, res) => {
-    res.sendFile(join(publicPath, 'index.html'));
+  app.get('*', (_req, res) => {
+    return res.sendFile(join(publicPath, 'index.html'));
   });
 }
 

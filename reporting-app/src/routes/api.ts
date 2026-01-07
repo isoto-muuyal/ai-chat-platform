@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -8,10 +7,6 @@ const router = Router();
 
 // All API routes require authentication
 router.use(requireAuth);
-
-// Query param validation schemas
-const daysSchema = z.enum(['7', '30', '90']).transform(Number);
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 // GET /api/overview?days=7|30|90
 router.get('/overview', async (req: Request, res: Response) => {
@@ -103,7 +98,7 @@ router.get('/overview', async (req: Request, res: Response) => {
       else if (sent === 'negative') sentiment.negative = row.count;
     });
 
-    res.json({
+    return res.json({
       totals: {
         conversations: conversationsResult.rows[0]?.count || 0,
         messages: messagesResult.rows[0]?.count || 0,
@@ -121,7 +116,7 @@ router.get('/overview', async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error({ err }, 'Error fetching overview');
-    res.status(500).json({ error: 'Failed to fetch overview' });
+    return res.status(500).json({ error: 'Failed to fetch overview' });
   }
 });
 
@@ -495,7 +490,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
       [conversationId]
     );
 
-    res.json({
+    return res.json({
       conversation: {
         id: convResult.rows[0].id,
         robloxUserId: convResult.rows[0].roblox_user_id?.toString(),
@@ -515,7 +510,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error({ err }, 'Error fetching conversation');
-    res.status(500).json({ error: 'Failed to fetch conversation' });
+    return res.status(500).json({ error: 'Failed to fetch conversation' });
   }
 });
 

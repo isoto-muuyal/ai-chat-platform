@@ -15,10 +15,11 @@ router.post('/stream', (req: Request, res: Response) => {
   const validationResult = chatRequestSchema.safeParse(req.body);
 
   if (!validationResult.success) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Validation failed',
-      details: validationResult.error.errors,
+      details: validationResult.error.issues,
     });
+    return;
   }
 
   // Set SSE headers
@@ -44,5 +45,4 @@ router.post('/stream', (req: Request, res: Response) => {
 });
 
 export default router;
-
 
