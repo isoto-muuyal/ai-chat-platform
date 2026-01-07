@@ -105,7 +105,7 @@ event: done
 data: {"ok":true}
 ```
 
-**Request Body:**
+**Request Body:** 
 - `message` (string, required): The chat message (max 200 characters)
 
 ## Docker
