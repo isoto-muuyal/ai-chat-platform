@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Copy frontend files
 COPY package.json ./
+COPY package-lock.json ./
 COPY vite.config.ts ./
 COPY tsconfig.json ./
 COPY tsconfig.node.json ./
@@ -22,6 +23,7 @@ WORKDIR /app
 
 # Copy backend files
 COPY package.json ./
+COPY package-lock.json ./
 COPY tsconfig.json ./
 COPY src ./src
 
@@ -36,9 +38,10 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json ./
+COPY package-lock.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy built frontend
 COPY --from=frontend-builder /app/dist/public ./dist/public
@@ -55,4 +58,3 @@ USER nodejs
 EXPOSE 3001
 
 CMD ["node", "dist/server.js"]
-
