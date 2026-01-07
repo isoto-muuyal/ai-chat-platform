@@ -8,7 +8,7 @@ const envSchema = z.object({
   PORT: z
     .string()
     .default('3000')
-    .transform((val) => parseInt(val, 10))
+    .transform((val: string) => parseInt(val, 10))
     .pipe(z.number().int().min(1).max(65535)),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
@@ -24,10 +24,10 @@ let env: Env;
 
 try {
   env = envSchema.parse(process.env);
-} catch (error) {
+} catch (error: unknown) {
   if (error instanceof z.ZodError) {
     console.error('❌ Invalid environment variables:');
-    error.errors.forEach((err) => {
+    error.errors.forEach((err: ZodIssue) => {
       console.error(`  ${err.path.join('.')}: ${err.message}`);
     });
     process.exit(1);
