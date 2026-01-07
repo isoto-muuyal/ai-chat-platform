@@ -22,14 +22,14 @@ jobs:
       - name: Build & push API
         run: |
           docker build -t llm-chat-api ./chat-api
-          docker tag llm-chat-api:latest ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
-          docker push ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
+          docker tag llm-chat-api:latest ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_API }}:latest
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_API }}:latest
 
       - name: Build & push Reporting
         run: |
           docker build -t reporting-app ./reporting-app
-          docker tag reporting-app:latest ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
-          docker push ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
+          docker tag reporting-app:latest ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_REPORTING }}:latest
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_REPORTING }}:latest
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -40,9 +40,8 @@ jobs:
           script: |
             cd ~/apps/ai-chat-backend
             docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REGISTRY }}
-            docker pull ${{ secrets.ECR_REGISTRY }}/llm-chat-api:latest
-            docker pull ${{ secrets.ECR_REGISTRY }}/reporting-app:latest
+            docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_API }}:latest
+            docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO_REPORTING }}:latest
             docker compose up -d
             docker image prune -f
-
 
