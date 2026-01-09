@@ -28,7 +28,7 @@ COPY tsconfig.json ./
 COPY src ./src
 
 # Install dependencies and build
-RUN npm ci
+RUN npm ci 
 RUN npm run build:backend
 
 # Production stage
