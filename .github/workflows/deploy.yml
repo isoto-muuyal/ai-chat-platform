@@ -1,4 +1,4 @@
-name: deploy
+name: deploy chat-api and reporting-app
 
 on:
   push:
