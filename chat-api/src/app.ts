@@ -1,7 +1,7 @@
 import express from 'express';
 import pinoHttp from 'pino-http';
-import { logger } from './config/logger.js';
-import routes from './routes/index.js';
+import { logger } from '../config/logger.js';
+import routes from '../routes/index.js';
 
 const app = express();
 
@@ -27,5 +27,4 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 export default app;
-
 

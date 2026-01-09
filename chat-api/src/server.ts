@@ -1,7 +1,7 @@
 import http from 'http';
 import app from './app.js';
-import { env } from './config/env.js';
-import { logger } from './config/logger.js';
+import { env } from '../config/env.js';
+import { logger } from '../config/logger.js';
 
 const server = http.createServer(app);
 
@@ -55,5 +55,4 @@ const PORT = env.PORT;
 server.listen(PORT, () => {
   logger.info({ port: PORT, env: env.NODE_ENV }, 'Server started');
 });
-
 
