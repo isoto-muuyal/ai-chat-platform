@@ -12,4 +12,4 @@
     "include": ["src/**/*.ts", "routes/**/*.ts", "config/**/*.ts"],
     "exclude": ["node_modules", "dist", "test"]
 
-}
+} 

@@ -102,7 +102,7 @@ event: token
 data: {"text":"Tema: demo\n"}
 
 event: done
-data: {"ok":true}
+data: {"ok":true} 
 ```
 
 **Request Body:** 
