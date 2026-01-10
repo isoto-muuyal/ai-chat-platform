@@ -5,17 +5,17 @@
 }
 
 .header {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
   padding: 20px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px var(--shadow);
 }
 
 .header h1 {
-  color: #333;
+  color: var(--text);
   font-size: 24px;
   font-weight: 600;
 }
@@ -26,7 +26,7 @@
 }
 
 .nav a {
-  color: #667eea;
+  color: var(--nav-link);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -34,7 +34,7 @@
 }
 
 .nav a:hover {
-  color: #5568d3;
+  color: var(--nav-link-hover);
   text-decoration: underline;
 }
 
@@ -45,8 +45,24 @@
 }
 
 .user-info span {
-  color: #666;
+  color: var(--text-muted);
   font-size: 14px;
+}
+
+.theme-toggle {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-muted);
 }
 
 .logout-btn {
@@ -72,4 +88,3 @@
   margin: 40px auto;
   padding: 0 40px;
 }
-

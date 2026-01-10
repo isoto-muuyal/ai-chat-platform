@@ -10,7 +10,7 @@
 }
 
 .conversations-header h2 {
-  color: #333;
+  color: var(--text);
   font-size: 24px;
   font-weight: 600;
 }
@@ -37,10 +37,10 @@
 }
 
 .filters {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
   margin-bottom: 20px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -55,7 +55,7 @@
 }
 
 .filter-group label {
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
@@ -65,9 +65,11 @@
 .filter-group input,
 .filter-group select {
   padding: 10px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .filter-group input:focus,
@@ -78,8 +80,8 @@
 
 .clear-btn {
   padding: 10px 20px;
-  background: #e0e0e0;
-  color: #333;
+  background: var(--divider);
+  color: var(--text);
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -89,14 +91,14 @@
 }
 
 .clear-btn:hover {
-  background: #d0d0d0;
+  background: var(--divider-strong);
 }
 
 .table-container {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
   overflow-x: auto;
   margin-bottom: 20px;
 }
@@ -107,25 +109,25 @@ table {
 }
 
 thead {
-  background: #f8f9fa;
+  background: var(--surface-muted);
 }
 
 th {
   text-align: left;
   padding: 12px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--border);
 }
 
 td {
   padding: 12px;
-  color: #333;
+  color: var(--text);
   font-size: 14px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--divider);
 }
 
 .clickable-row {
@@ -133,13 +135,13 @@ td {
 }
 
 .clickable-row:hover {
-  background: #f8f9fa;
+  background: var(--surface-muted);
 }
 
 .empty {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .pagination {
@@ -151,12 +153,13 @@ td {
 
 .pagination button {
   padding: 8px 16px;
-  border: 2px solid #e0e0e0;
-  background: white;
+  border: 2px solid var(--border);
+  background: var(--surface);
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
+  color: var(--text);
 }
 
 .pagination button:hover:not(:disabled) {
@@ -172,7 +175,6 @@ td {
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 16px;
 }
-

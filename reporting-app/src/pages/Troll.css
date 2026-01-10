@@ -10,16 +10,18 @@
 }
 
 .troll-header h2 {
-  color: #333;
+  color: var(--text);
   font-size: 24px;
   font-weight: 600;
 }
 
 .troll-header select {
   padding: 8px 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .stats-grid {
@@ -30,14 +32,14 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .stat-card h3 {
-  color: #666;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 12px;
@@ -46,7 +48,7 @@
 }
 
 .stat-value {
-  color: #333;
+  color: var(--text);
   font-size: 32px;
   font-weight: 700;
 }
@@ -58,14 +60,14 @@
 }
 
 .chart-card {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .chart-card h3 {
-  color: #333;
+  color: var(--text);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -79,11 +81,10 @@
 .error {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 16px;
 }
 
 .error {
-  color: #c33;
+  color: var(--danger);
 }
-

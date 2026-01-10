@@ -26,21 +26,21 @@
 }
 
 .detail-header h2 {
-  color: #333;
+  color: var(--text);
   font-size: 24px;
   font-weight: 600;
 }
 
 .info-card {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
   margin-bottom: 20px;
 }
 
 .info-card h3 {
-  color: #333;
+  color: var(--text);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -59,7 +59,7 @@
 }
 
 .info-item label {
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
@@ -67,20 +67,20 @@
 }
 
 .info-item div {
-  color: #333;
+  color: var(--text);
   font-size: 16px;
   font-weight: 500;
 }
 
 .messages-container {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .messages-container h3 {
-  color: #333;
+  color: var(--text);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -93,9 +93,9 @@
 }
 
 .message {
-  border-left: 4px solid #e0e0e0;
+  border-left: 4px solid var(--border);
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--surface-muted);
   border-radius: 0 8px 8px 0;
 }
 
@@ -113,11 +113,11 @@
 
 .sender {
   font-weight: 600;
-  color: #333;
+  color: var(--text);
 }
 
 .time {
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -131,7 +131,7 @@
 }
 
 .message-content {
-  color: #333;
+  color: var(--text);
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -142,11 +142,10 @@
 .error {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 16px;
 }
 
 .error {
-  color: #c33;
+  color: var(--danger);
 }
-

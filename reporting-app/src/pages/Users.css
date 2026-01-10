@@ -10,23 +10,25 @@
 }
 
 .users-header h2 {
-  color: #333;
+  color: var(--text);
   font-size: 24px;
   font-weight: 600;
 }
 
 .users-header select {
   padding: 8px 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .table-container {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--shadow);
   overflow-x: auto;
 }
 
@@ -36,41 +38,40 @@ table {
 }
 
 thead {
-  background: #f8f9fa;
+  background: var(--surface-muted);
 }
 
 th {
   text-align: left;
   padding: 12px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--border);
 }
 
 td {
   padding: 12px;
-  color: #333;
+  color: var(--text);
   font-size: 14px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--divider);
 }
 
 tr:hover {
-  background: #f8f9fa;
+  background: var(--surface-muted);
 }
 
 .empty {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-muted);
   font-size: 16px;
 }
-

@@ -7,7 +7,7 @@ const chatRequestSchema = z.object({
   message: z
     .string()
     .min(1, 'Message is required')
-    .max(200, 'Message must be 200 characters or less'),
+    .max(300, 'Message must be 300 characters or less'),
 });
 
 router.post('/stream', (req: Request, res: Response) => {
