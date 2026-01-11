@@ -16,6 +16,10 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
+  COOKIE_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   DB_URL: z.string().url('DB_URL must be a valid PostgreSQL connection URL'),
   ADMIN_USER: z.string().min(1, 'ADMIN_USER is required'),
   ADMIN_PASS: z.string().min(1, 'ADMIN_PASS is required'),
@@ -43,5 +47,4 @@ try {
 }
 
 export { env };
-
 
