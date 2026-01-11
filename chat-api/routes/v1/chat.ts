@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { logger } from '../../config/logger.js';
 
 const router = Router();
 
@@ -8,6 +9,19 @@ const chatRequestSchema = z.object({
     .string()
     .min(1, 'Message is required')
     .max(300, 'Message must be 300 characters or less'),
+  playerId: z.string().min(1).max(64).optional(),
+  sessionId: z.string().min(1).max(64).optional(),
+  gender: z.enum(['male', 'female', 'other', 'unknown']).optional(),
+  location: z
+    .object({
+      country: z.string().min(2).max(2).optional(),
+      region: z.string().min(1).max(64).optional(),
+      city: z.string().min(1).max(64).optional(),
+    })
+    .optional(),
+  clientTimestamp: z
+    .union([z.string().datetime(), z.number().int().nonnegative()])
+    .optional(),
 });
 
 router.post('/stream', (req: Request, res: Response) => {
@@ -21,6 +35,20 @@ router.post('/stream', (req: Request, res: Response) => {
     });
   }
 
+  const {
+    message,
+    playerId,
+    sessionId,
+    gender,
+    location,
+    clientTimestamp,
+  } = validationResult.data;
+
+  logger.info(
+    { playerId, sessionId, gender, location, clientTimestamp, messageLength: message.length },
+    'chat request received'
+  );
+
   // Set SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -29,7 +57,13 @@ router.post('/stream', (req: Request, res: Response) => {
 
   // Send meta event
   res.write(`event: meta\n`);
-  res.write(`data: ${JSON.stringify({ ok: true, cache: 'miss' })}\n\n`);
+  res.write(
+    `data: ${JSON.stringify({
+      ok: true,
+      cache: 'miss',
+      receivedAt: new Date().toISOString(),
+    })}\n\n`
+  );
 
   // Send token event
   res.write(`event: token\n`);
@@ -44,4 +78,3 @@ router.post('/stream', (req: Request, res: Response) => {
 });
 
 export default router;
-
