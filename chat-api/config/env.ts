@@ -16,6 +16,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
+  CHAT_API_KEY: z.string().min(1, 'CHAT_API_KEY is required'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -36,4 +37,3 @@ try {
 }
 
 export { env };
-

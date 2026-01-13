@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { logger } from '../../config/logger.js';
+import { env } from '../../config/env.js';
 
 const router = Router();
 
@@ -25,6 +26,11 @@ const chatRequestSchema = z.object({
 });
 
 router.post('/stream', (req: Request, res: Response) => {
+  const apiKey = req.header('x-api-key');
+  if (!apiKey || apiKey !== env.CHAT_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   // Validate request body
   const validationResult = chatRequestSchema.safeParse(req.body);
 
