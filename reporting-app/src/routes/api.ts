@@ -83,6 +83,8 @@ router.get('/overview', async (req: Request, res: Response) => {
       WHERE started_at >= $1
         AND sentiment IS NOT NULL
       GROUP BY sentiment`
+      ,
+      [cutoff]
     );
 
     const sentiment: { positive: number; neutral: number; negative: number } = {
