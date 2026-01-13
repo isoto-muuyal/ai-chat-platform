@@ -261,25 +261,7 @@ router.post('/stream', (req: Request, res: Response) => {
   };
 
   geminiRequest()
-    .then(async (text) => {
-      const { topic, sentiment, is_troll } = await inferMeta(message);
-
-      try {
-        await persistInteraction({
-          conversationId,
-          robloxUserId,
-          robloxUsername,
-          userMessage: message,
-          aiMessage: text,
-          country: location?.country,
-          topic,
-          sentiment,
-          isTroll: is_troll,
-        });
-      } catch (err) {
-        logger.error({ err }, 'Failed to persist chat interaction');
-      }
-
+    .then((text) => {
       // Set SSE headers
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -306,6 +288,23 @@ router.post('/stream', (req: Request, res: Response) => {
       res.write(`data: ${JSON.stringify({ ok: true })}\n\n`);
 
       res.end();
+
+      void (async () => {
+        const { topic, sentiment, is_troll } = await inferMeta(message);
+        await persistInteraction({
+          conversationId,
+          robloxUserId,
+          robloxUsername,
+          userMessage: message,
+          aiMessage: text,
+          country: location?.country,
+          topic,
+          sentiment,
+          isTroll: is_troll,
+        });
+      })().catch((err) => {
+        logger.error({ err }, 'Failed to persist chat interaction');
+      });
     })
     .catch((err) => {
       logger.error({ err }, 'Gemini request failed');
