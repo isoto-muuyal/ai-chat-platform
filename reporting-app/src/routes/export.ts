@@ -197,7 +197,7 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
 
     const result = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic,
+        COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
         ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM conversations WHERE started_at >= $1)::float * 100, 2) as share
       FROM conversations

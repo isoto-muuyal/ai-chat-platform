@@ -63,11 +63,10 @@ router.get('/overview', async (req: Request, res: Response) => {
     // Get top 10 topics
     const topTopicsResult = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic,
+        COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count
       FROM conversations
       WHERE started_at >= $1
-        AND topic IS NOT NULL
       GROUP BY topic
       ORDER BY count DESC
       LIMIT $2`,
@@ -132,7 +131,7 @@ router.get('/topics', async (req: Request, res: Response) => {
 
     const result = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic,
+        COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
         ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM conversations WHERE started_at >= $1)::float * 100, 2) as share
       FROM conversations
@@ -168,11 +167,10 @@ router.get('/topics/timeseries', async (req: Request, res: Response) => {
     // Get top N topics
     const topTopicsResult = await pool.query(
       `SELECT 
-        COALESCE(topic, 'Unknown') as topic
+        COALESCE(topic, 'general') as topic
       FROM conversations
       WHERE started_at >= $1
-        AND topic IS NOT NULL
-      GROUP BY topic
+      GROUP BY COALESCE(topic, 'general')
       ORDER BY COUNT(*) DESC
       LIMIT $2`,
       [cutoff, top]
@@ -189,11 +187,11 @@ router.get('/topics/timeseries', async (req: Request, res: Response) => {
           (started_at AT TIME ZONE 'UTC')::date::text as date,
           COUNT(*)::int as count
         FROM conversations
-        WHERE topic = $1
+        WHERE COALESCE(topic, 'general') = $1
           AND started_at >= $2
         GROUP BY (started_at AT TIME ZONE 'UTC')::date
         ORDER BY date ASC`,
-        [topic === 'Unknown' ? null : topic, cutoff]
+        [topic, cutoff]
       );
 
       dailyData[topic] = result.rows.map((row) => ({
