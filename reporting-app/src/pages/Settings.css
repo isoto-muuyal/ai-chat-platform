@@ -1,0 +1,47 @@
+.settings {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.settings h2 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.settings-form {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.settings-form input,
+.settings-form select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.save-btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  filter: brightness(0.95);
+}

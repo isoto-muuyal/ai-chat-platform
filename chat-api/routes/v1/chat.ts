@@ -291,6 +291,7 @@ router.post('/stream', (req: Request, res: Response) => {
 
       void (async () => {
         const { topic, sentiment, is_troll } = await inferMeta(message);
+        const normalizedTopic = topic && topic.trim() ? topic.trim() : 'general';
         await persistInteraction({
           conversationId,
           robloxUserId,
@@ -298,7 +299,7 @@ router.post('/stream', (req: Request, res: Response) => {
           userMessage: message,
           aiMessage: text,
           country: location?.country,
-          topic,
+          topic: normalizedTopic,
           sentiment,
           isTroll: is_troll,
         });

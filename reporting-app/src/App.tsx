@@ -7,6 +7,7 @@ import Troll from './pages/Troll';
 import Users from './pages/Users';
 import Conversations from './pages/Conversations';
 import ConversationDetail from './pages/ConversationDetail';
+import Settings from './pages/Settings';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function App() {
           <Route path="topics" element={<Topics />} />
           <Route path="troll" element={<Troll />} />
           <Route path="users" element={<Users />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />
         </Route>
@@ -50,4 +52,3 @@ function App() {
 }
 
 export default App;
-

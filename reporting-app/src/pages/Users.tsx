@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSettings } from '../contexts/SettingsContext';
 import './Users.css';
 
 interface User {
@@ -12,6 +13,7 @@ interface User {
 }
 
 export default function Users() {
+  const { t } = useSettings();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(90);
@@ -34,16 +36,16 @@ export default function Users() {
     }
   }
 
-  if (loading) return <div className="loading">Loading users...</div>;
+  if (loading) return <div className="loading">{t('loadingUsers')}</div>;
 
   return (
     <div className="users">
       <div className="users-header">
-        <h2>Users</h2>
+        <h2>{t('users')}</h2>
         <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
+          <option value={7}>{t('last7')}</option>
+          <option value={30}>{t('last30')}</option>
+          <option value={90}>{t('last90')}</option>
         </select>
       </div>
 
@@ -51,13 +53,13 @@ export default function Users() {
         <table>
           <thead>
             <tr>
-              <th>Roblox User ID</th>
-              <th>Username</th>
-              <th>Messages</th>
-              <th>Conversations</th>
-              <th>Last Seen</th>
-              <th>Country</th>
-              <th>Age Range</th>
+              <th>{t('robloxUserId')}</th>
+              <th>{t('username')}</th>
+              <th>{t('messages')}</th>
+              <th>{t('conversationsCount')}</th>
+              <th>{t('lastSeen')}</th>
+              <th>{t('country')}</th>
+              <th>{t('ageRange')}</th>
             </tr>
           </thead>
           <tbody>
@@ -74,9 +76,8 @@ export default function Users() {
             ))}
           </tbody>
         </table>
-        {users.length === 0 && <div className="empty">No users found</div>}
+        {users.length === 0 && <div className="empty">{t('noUsers')}</div>}
       </div>
     </div>
   );
 }
-
