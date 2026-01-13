@@ -55,32 +55,69 @@ router.post('/stream', (req: Request, res: Response) => {
     'chat request received'
   );
 
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
+  const geminiBody = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: message }],
+      },
+    ],
+  };
 
-  // Send meta event
-  res.write(`event: meta\n`);
-  res.write(
-    `data: ${JSON.stringify({
-      ok: true,
-      cache: 'miss',
-      receivedAt: new Date().toISOString(),
-    })}\n\n`
-  );
+  const geminiRequest = async () => {
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody),
+    });
 
-  // Send token event
-  res.write(`event: token\n`);
-  res.write(`data: ${JSON.stringify({ text: 'Tema: demo\n' })}\n\n`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini error ${response.status}: ${errorText}`);
+    }
 
-  // Send done event
-  res.write(`event: done\n`);
-  res.write(`data: ${JSON.stringify({ ok: true })}\n\n`);
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error('Gemini response missing text');
+    }
 
-  // End the response
-  res.end();
+    return text as string;
+  };
+
+  geminiRequest()
+    .then((text) => {
+      // Set SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+      // Send meta event
+      res.write(`event: meta\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          ok: true,
+          cache: 'miss',
+          receivedAt: new Date().toISOString(),
+        })}\n\n`
+      );
+
+      // Send token event
+      res.write(`event: token\n`);
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
+
+      // Send done event
+      res.write(`event: done\n`);
+      res.write(`data: ${JSON.stringify({ ok: true })}\n\n`);
+
+      res.end();
+    })
+    .catch((err) => {
+      logger.error({ err }, 'Gemini request failed');
+      return res.status(502).json({ error: 'Upstream AI request failed' });
+    });
 });
 
 export default router;
