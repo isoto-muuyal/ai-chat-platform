@@ -19,6 +19,7 @@ const envSchema = z.object({
   CHAT_API_KEY: z.string().min(1, 'CHAT_API_KEY is required'),
   GEMINI_KEY: z.string().min(1, 'GEMINI_KEY is required'),
   GEMINI_MODEL: z.string().min(1, 'GEMINI_MODEL is required'),
+  DB_URL: z.string().url('DB_URL must be a valid PostgreSQL connection URL'),
 });
 
 export type Env = z.infer<typeof envSchema>;
