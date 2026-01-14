@@ -45,3 +45,8 @@
 .save-btn:hover {
   filter: brightness(0.95);
 }
+
+.status {
+  font-size: 14px;
+  color: var(--text-muted);
+}

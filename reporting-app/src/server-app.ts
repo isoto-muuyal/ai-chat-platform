@@ -9,6 +9,7 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import exportRouter from './routes/export.js';
+import adminRouter from './routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,6 +57,7 @@ app.use(
 app.use('/api/auth', authRouter);
 app.use('/api', apiRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/admin', adminRouter);
 app.use(healthRouter);
 
 // Serve React app in production

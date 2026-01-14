@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import './Topics.css';
+import { useSettings } from '../contexts/SettingsContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -27,6 +28,7 @@ interface TimeseriesData {
 }
 
 export default function Topics() {
+  const { t } = useSettings();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [timeseries, setTimeseries] = useState<TimeseriesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function Topics() {
     }
   }
 
-  if (loading) return <div className="loading">Loading topics...</div>;
+  if (loading) return <div className="loading">{t('loadingTopics')}</div>;
 
   const colors = [
     '#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe',
@@ -84,13 +86,15 @@ export default function Topics() {
       }
     : null;
 
+  const dayLabel = days === 7 ? t('last7') : days === 30 ? t('last30') : t('last90');
+
   return (
     <div className="topics">
       <div className="topics-header">
-        <h2>Topics Analysis</h2>
+        <h2>{t('topicsAnalysis')}</h2>
         <div className="controls">
           <label>
-            Days:
+            {t('days')}:
             <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
               <option value={7}>7</option>
               <option value={30}>30</option>
@@ -98,7 +102,7 @@ export default function Topics() {
             </select>
           </label>
           <label>
-            Top N:
+            {t('topN')}:
             <input
               type="number"
               value={topN}
@@ -112,20 +116,20 @@ export default function Topics() {
             className="export-btn"
             download
           >
-            Export XLSX
+            {t('exportXlsx')}
           </a>
         </div>
       </div>
 
       <div className="topics-grid">
         <div className="chart-card">
-          <h3>Topic Counts and Share</h3>
+          <h3>{t('topicCountsShare')}</h3>
           <table>
             <thead>
               <tr>
-                <th>Topic</th>
-                <th>Count</th>
-                <th>Share (%)</th>
+                <th>{t('topic')}</th>
+                <th>{t('count')}</th>
+                <th>{t('share')}</th>
               </tr>
             </thead>
             <tbody>
@@ -141,7 +145,9 @@ export default function Topics() {
         </div>
 
         <div className="chart-card">
-          <h3>Top Topics Timeseries (Last {days} Days)</h3>
+          <h3>
+            {t('topTopicsTimeseries')} ({dayLabel})
+          </h3>
           {chartData && (
             <div className="chart-container">
               <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
@@ -152,4 +158,3 @@ export default function Topics() {
     </div>
   );
 }
-

@@ -7,7 +7,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { settings, updateSettings, t } = useSettings();
   const navigate = useNavigate();
-  const displayName = settings.fullName || user?.username;
+  const displayName = user?.fullName || user?.email || 'User';
 
   const handleLogout = async () => {
     await logout();
@@ -29,6 +29,7 @@ export default function Layout() {
           <Link to="/users">{t('users')}</Link>
           <Link to="/conversations">{t('conversations')}</Link>
           <Link to="/settings">{t('settings')}</Link>
+          {user?.role === 'sysadmin' && <Link to="/admin/users">Admin</Link>}
         </nav>
         <div className="user-info">
           <span>

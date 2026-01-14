@@ -6,6 +6,7 @@ type Theme = 'light' | 'dark';
 type Settings = {
   fullName: string;
   email: string;
+  company: string;
   language: Language;
   theme: Theme;
 };
@@ -19,6 +20,7 @@ type SettingsContextValue = {
 const defaultSettings: Settings = {
   fullName: '',
   email: '',
+  company: '',
   language: 'en',
   theme: 'light',
 };
@@ -49,13 +51,27 @@ const translations = {
   ageRange: { en: 'Age Range', es: 'Rango de edad' },
   fullName: { en: 'Full name', es: 'Nombre completo' },
   email: { en: 'Email', es: 'Correo' },
+  company: { en: 'Company', es: 'Empresa' },
   language: { en: 'Language', es: 'Idioma' },
   theme: { en: 'Theme', es: 'Tema' },
   save: { en: 'Save', es: 'Guardar' },
+  currentPassword: { en: 'Current password', es: 'Contraseña actual' },
+  newPassword: { en: 'New password', es: 'Nueva contraseña' },
+  saved: { en: 'Saved', es: 'Guardado' },
   english: { en: 'English', es: 'Inglés' },
   spanish: { en: 'Spanish', es: 'Español' },
   light: { en: 'Light', es: 'Claro' },
   dark: { en: 'Dark', es: 'Oscuro' },
+  topicsAnalysis: { en: 'Topics Analysis', es: 'Análisis de temas' },
+  days: { en: 'Days', es: 'Días' },
+  topN: { en: 'Top N', es: 'Top N' },
+  exportXlsx: { en: 'Export XLSX', es: 'Exportar XLSX' },
+  topicCountsShare: { en: 'Topic Counts and Share', es: 'Conteos y porcentaje por tema' },
+  topic: { en: 'Topic', es: 'Tema' },
+  count: { en: 'Count', es: 'Conteo' },
+  share: { en: 'Share (%)', es: 'Porcentaje (%)' },
+  topTopicsTimeseries: { en: 'Top Topics Timeseries', es: 'Serie temporal de temas principales' },
+  loadingTopics: { en: 'Loading topics...', es: 'Cargando temas...' },
 };
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);

@@ -27,6 +27,10 @@ const envSchema = z.object({
     .string()
     .min(32, 'SESSION_SECRET must be at least 32 characters')
     .default('change-this-secret-in-production-min-32-chars'),
+  MESSAGE_ENCRYPTION_KEY: z.string().min(16, 'MESSAGE_ENCRYPTION_KEY is required'),
+  MAILERSEND_API_KEY: z.string().min(1, 'MAILERSEND_API_KEY is required'),
+  MAIL_FROM: z.string().email('MAIL_FROM must be a valid email'),
+  APP_BASE_URL: z.string().url('APP_BASE_URL must be a valid URL'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -38,7 +42,7 @@ try {
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.error('❌ Invalid environment variables:');
-    error.errors.forEach((err) => {
+    error.issues.forEach((err) => {
       console.error(`  ${err.path.join('.')}: ${err.message}`);
     });
     process.exit(1);
@@ -47,4 +51,3 @@ try {
 }
 
 export { env };
-

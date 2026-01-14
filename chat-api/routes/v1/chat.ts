@@ -12,6 +12,7 @@ const chatRequestSchema = z.object({
     .string()
     .min(1, 'Message is required')
     .max(300, 'Message must be 300 characters or less'),
+  accountNumber: z.coerce.number().int().positive(),
   playerId: z.string().min(1).max(64).optional(),
   robloxUsername: z.string().min(1).max(64).optional(),
   sessionId: z.string().min(1).max(64).optional(),
@@ -94,6 +95,7 @@ const inferMeta = async (message: string): Promise<{
 
 const persistInteraction = async (params: {
   conversationId: string;
+  accountNumber: number;
   robloxUserId: number | null;
   robloxUsername?: string;
   userMessage: string;
@@ -105,6 +107,7 @@ const persistInteraction = async (params: {
 }): Promise<void> => {
   const {
     conversationId,
+    accountNumber,
     robloxUserId,
     robloxUsername,
     userMessage,
@@ -123,20 +126,30 @@ const persistInteraction = async (params: {
     await client.query(
       `INSERT INTO conversations (
         id,
+        account_number,
         roblox_user_id,
         roblox_username,
         started_at,
         last_message_at,
         topic,
         sentiment
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (id) DO UPDATE SET
         last_message_at = EXCLUDED.last_message_at,
         roblox_user_id = COALESCE(conversations.roblox_user_id, EXCLUDED.roblox_user_id),
         roblox_username = COALESCE(conversations.roblox_username, EXCLUDED.roblox_username),
         topic = COALESCE(conversations.topic, EXCLUDED.topic),
         sentiment = COALESCE(conversations.sentiment, EXCLUDED.sentiment)`,
-      [conversationId, robloxUserId, robloxUsername ?? null, now, now, topic, sentiment]
+      [
+        conversationId,
+        accountNumber,
+        robloxUserId,
+        robloxUsername ?? null,
+        now,
+        now,
+        topic,
+        sentiment,
+      ]
     );
 
     await client.query(
@@ -145,10 +158,22 @@ const persistInteraction = async (params: {
         conversation_id,
         sender,
         content,
+        content_encrypted,
         created_at,
+        account_number,
         is_troll
-      ) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [randomUUID(), conversationId, 'user', userMessage, now, isTroll]
+      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9)`,
+      [
+        randomUUID(),
+        conversationId,
+        'user',
+        null,
+        userMessage,
+        env.MESSAGE_ENCRYPTION_KEY,
+        now,
+        accountNumber,
+        isTroll,
+      ]
     );
 
     await client.query(
@@ -157,10 +182,22 @@ const persistInteraction = async (params: {
         conversation_id,
         sender,
         content,
+        content_encrypted,
         created_at,
+        account_number,
         is_troll
-      ) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [randomUUID(), conversationId, 'assistant', aiMessage, now, false]
+      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9)`,
+      [
+        randomUUID(),
+        conversationId,
+        'assistant',
+        null,
+        aiMessage,
+        env.MESSAGE_ENCRYPTION_KEY,
+        now,
+        accountNumber,
+        false,
+      ]
     );
 
     if (robloxUserId !== null && country) {
@@ -168,11 +205,12 @@ const persistInteraction = async (params: {
         `INSERT INTO analytics (
           id,
           roblox_user_id,
+          account_number,
           country,
           inferred_age_range,
           created_at
-        ) VALUES ($1, $2, $3, $4, $5)`,
-        [randomUUID(), robloxUserId, country, null, now]
+        ) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [randomUUID(), robloxUserId, accountNumber, country, null, now]
       );
     }
 
@@ -203,6 +241,7 @@ router.post('/stream', (req: Request, res: Response) => {
 
   const {
     message,
+    accountNumber,
     playerId,
     robloxUsername,
     sessionId,
@@ -217,6 +256,7 @@ router.post('/stream', (req: Request, res: Response) => {
 
   logger.info(
     {
+      accountNumber,
       playerId,
       robloxUsername,
       sessionId,
@@ -294,6 +334,7 @@ router.post('/stream', (req: Request, res: Response) => {
         const normalizedTopic = topic && topic.trim() ? topic.trim() : 'general';
         await persistInteraction({
           conversationId,
+          accountNumber,
           robloxUserId,
           robloxUsername,
           userMessage: message,

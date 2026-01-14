@@ -1,9 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.js';
+import { applyAccountScope } from '../utils/accountScope.js';
 
 const router = Router();
+
+const truncateWords = (text: string | null, maxWords = 5): string => {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text.trim();
+  return `${words.slice(0, maxWords).join(' ')}...`;
+};
 
 // All API routes require authentication
 router.use(requireAuth);
@@ -20,23 +29,40 @@ router.get('/overview', async (req: Request, res: Response) => {
     cutoff.setUTCDate(cutoff.getUTCDate() - days);
     cutoff.setUTCHours(0, 0, 0, 0);
 
+    const convConditions = ['started_at >= $1'];
+    const convParams: unknown[] = [cutoff];
+    let convIndex = 2;
+    convIndex = applyAccountScope(req, convConditions, convParams, convIndex, 'account_number');
+
+    const msgConditions = ['created_at >= $1'];
+    const msgParams: unknown[] = [cutoff];
+    let msgIndex = 2;
+    msgIndex = applyAccountScope(req, msgConditions, msgParams, msgIndex, 'account_number');
+
     // Get totals
     const [conversationsResult, messagesResult, usersResult] = await Promise.all([
       pool.query(
-        'SELECT COUNT(*)::int as count FROM conversations WHERE started_at >= $1',
-        [cutoff]
+        `SELECT COUNT(*)::int as count FROM conversations WHERE ${convConditions.join(' AND ')}`,
+        convParams
       ),
       pool.query(
-        'SELECT COUNT(*)::int as count FROM messages WHERE created_at >= $1',
-        [cutoff]
+        `SELECT COUNT(*)::int as count FROM messages WHERE ${msgConditions.join(' AND ')}`,
+        msgParams
       ),
       pool.query(
-        'SELECT COUNT(DISTINCT roblox_user_id)::int as count FROM conversations WHERE started_at >= $1',
-        [cutoff]
+        `SELECT COUNT(DISTINCT roblox_user_id)::int as count FROM conversations WHERE ${convConditions.join(
+          ' AND '
+        )}`,
+        convParams
       ),
     ]);
 
     // Get troll rate
+    const trollRateConditions = ['created_at >= $1'];
+    const trollRateParams: unknown[] = [cutoff];
+    let trollIndex = 2;
+    trollIndex = applyAccountScope(req, trollRateConditions, trollRateParams, trollIndex, 'account_number');
+
     const trollRateResult = await pool.query(
       `SELECT 
         CASE 
@@ -44,11 +70,16 @@ router.get('/overview', async (req: Request, res: Response) => {
           ELSE (COUNT(*) FILTER (WHERE is_troll = true)::float / COUNT(*)::float * 100)
         END as troll_rate
       FROM messages
-      WHERE created_at >= $1`,
-      [cutoff]
+      WHERE ${trollRateConditions.join(' AND ')}`,
+      trollRateParams
     );
 
     // Get avg messages per conversation
+    const avgConditions = ['created_at >= $1'];
+    const avgParams: unknown[] = [cutoff];
+    let avgIndex = 2;
+    avgIndex = applyAccountScope(req, avgConditions, avgParams, avgIndex, 'account_number');
+
     const avgMessagesResult = await pool.query(
       `SELECT 
         CASE 
@@ -56,34 +87,49 @@ router.get('/overview', async (req: Request, res: Response) => {
           ELSE COUNT(*)::float / COUNT(DISTINCT conversation_id)::float
         END as avg_messages
       FROM messages
-      WHERE created_at >= $1`,
-      [cutoff]
+      WHERE ${avgConditions.join(' AND ')}`,
+      avgParams
     );
 
     // Get top 10 topics
+    const topTopicConditions = ['started_at >= $1'];
+    const topTopicParams: unknown[] = [cutoff];
+    let topTopicIndex = 2;
+    topTopicIndex = applyAccountScope(req, topTopicConditions, topTopicParams, topTopicIndex, 'account_number');
+
     const topTopicsResult = await pool.query(
       `SELECT 
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count
       FROM conversations
-      WHERE started_at >= $1
+      WHERE ${topTopicConditions.join(' AND ')}
       GROUP BY topic
       ORDER BY count DESC
-      LIMIT $2`,
-      [cutoff, 10]
+      LIMIT $${topTopicIndex}`,
+      [...topTopicParams, 10]
     );
 
     // Get sentiment breakdown
+    const sentimentConditions = ['started_at >= $1', 'sentiment IS NOT NULL'];
+    const sentimentParams: unknown[] = [cutoff];
+    let sentimentIndex = 2;
+    sentimentIndex = applyAccountScope(
+      req,
+      sentimentConditions,
+      sentimentParams,
+      sentimentIndex,
+      'account_number'
+    );
+
     const sentimentResult = await pool.query(
       `SELECT 
         sentiment,
         COUNT(*)::int as count
       FROM conversations
-      WHERE started_at >= $1
-        AND sentiment IS NOT NULL
+      WHERE ${sentimentConditions.join(' AND ')}
       GROUP BY sentiment`
       ,
-      [cutoff]
+      sentimentParams
     );
 
     const sentiment: { positive: number; neutral: number; negative: number } = {
@@ -129,16 +175,25 @@ router.get('/topics', async (req: Request, res: Response) => {
     cutoff.setUTCDate(cutoff.getUTCDate() - days);
     cutoff.setUTCHours(0, 0, 0, 0);
 
+    const conditions = ['started_at >= $1'];
+    const params: unknown[] = [cutoff];
+    let paramIndex = 2;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+    const whereClause = conditions.join(' AND ');
+
     const result = await pool.query(
       `SELECT 
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
-        ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM conversations WHERE started_at >= $1)::float * 100, 2) as share
+        ROUND(
+          COUNT(*)::float / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::float, 0) * 100,
+          2
+        ) as share
       FROM conversations
-      WHERE started_at >= $1
+      WHERE ${whereClause}
       GROUP BY topic
       ORDER BY count DESC`,
-      [cutoff]
+      params
     );
 
     res.json(
@@ -165,15 +220,20 @@ router.get('/topics/timeseries', async (req: Request, res: Response) => {
     cutoff.setUTCHours(0, 0, 0, 0);
 
     // Get top N topics
+    const topConditions = ['started_at >= $1'];
+    const topParams: unknown[] = [cutoff];
+    let topIndex = 2;
+    topIndex = applyAccountScope(req, topConditions, topParams, topIndex, 'account_number');
+
     const topTopicsResult = await pool.query(
       `SELECT 
         COALESCE(topic, 'general') as topic
       FROM conversations
-      WHERE started_at >= $1
+      WHERE ${topConditions.join(' AND ')}
       GROUP BY COALESCE(topic, 'general')
       ORDER BY COUNT(*) DESC
-      LIMIT $2`,
-      [cutoff, top]
+      LIMIT $${topIndex}`,
+      [...topParams, top]
     );
 
     const topics = topTopicsResult.rows.map((row) => row.topic);
@@ -189,9 +249,10 @@ router.get('/topics/timeseries', async (req: Request, res: Response) => {
         FROM conversations
         WHERE COALESCE(topic, 'general') = $1
           AND started_at >= $2
+          ${req.session?.role === 'sysadmin' ? '' : 'AND account_number = $3'}
         GROUP BY (started_at AT TIME ZONE 'UTC')::date
         ORDER BY date ASC`,
-        [topic, cutoff]
+        req.session?.role === 'sysadmin' ? [topic, cutoff] : [topic, cutoff, req.session?.accountNumber]
       );
 
       dailyData[topic] = result.rows.map((row) => ({
@@ -234,31 +295,40 @@ router.get('/troll', async (req: Request, res: Response) => {
     cutoff.setUTCHours(0, 0, 0, 0);
 
     // Daily troll data
+    const dailyConditions = ['created_at >= $1'];
+    const dailyParams: unknown[] = [cutoff];
+    let dailyIndex = 2;
+    dailyIndex = applyAccountScope(req, dailyConditions, dailyParams, dailyIndex, 'account_number');
+
     const dailyResult = await pool.query(
       `SELECT 
         (created_at AT TIME ZONE 'UTC')::date::text as date,
         COUNT(*)::int as total_messages,
         COUNT(*) FILTER (WHERE is_troll = true)::int as troll_messages
       FROM messages
-      WHERE created_at >= $1
+      WHERE ${dailyConditions.join(' AND ')}
       GROUP BY (created_at AT TIME ZONE 'UTC')::date
       ORDER BY date ASC`,
-      [cutoff]
+      dailyParams
     );
 
     // Top trolling topics
+    const topTrollConditions = ['m.created_at >= $1', 'm.is_troll = true'];
+    const topTrollParams: unknown[] = [cutoff];
+    let topTrollIndex = 2;
+    topTrollIndex = applyAccountScope(req, topTrollConditions, topTrollParams, topTrollIndex, 'm.account_number');
+
     const topTrollTopicsResult = await pool.query(
       `SELECT 
         COALESCE(c.topic, 'Unknown') as topic,
         COUNT(*) FILTER (WHERE m.is_troll = true)::int as troll_count
       FROM messages m
       JOIN conversations c ON m.conversation_id = c.id
-      WHERE m.created_at >= $1
-        AND m.is_troll = true
+      WHERE ${topTrollConditions.join(' AND ')}
       GROUP BY c.topic
       ORDER BY troll_count DESC
       LIMIT 10`,
-      [cutoff]
+      topTrollParams
     );
 
     // Generate all dates
@@ -302,6 +372,11 @@ router.get('/users', async (req: Request, res: Response) => {
     cutoff.setUTCDate(cutoff.getUTCDate() - days);
     cutoff.setUTCHours(0, 0, 0, 0);
 
+    const conditions = ['c.started_at >= $1'];
+    const params: unknown[] = [cutoff];
+    let paramIndex = 2;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'c.account_number');
+
     const result = await pool.query(
       `SELECT 
         c.roblox_user_id,
@@ -313,11 +388,11 @@ router.get('/users', async (req: Request, res: Response) => {
         a.inferred_age_range
       FROM conversations c
       LEFT JOIN messages m ON m.conversation_id = c.id
-      LEFT JOIN analytics a ON a.roblox_user_id = c.roblox_user_id
-      WHERE c.started_at >= $1
+      LEFT JOIN analytics a ON a.roblox_user_id = c.roblox_user_id AND a.account_number = c.account_number
+      WHERE ${conditions.join(' AND ')}
       GROUP BY c.roblox_user_id, c.roblox_username, a.country, a.inferred_age_range
       ORDER BY last_seen DESC`,
-      [cutoff]
+      params
     );
 
     res.json(
@@ -398,6 +473,8 @@ router.get('/conversations', async (req: Request, res: Response) => {
       paramIndex++;
     }
 
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'c.account_number');
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Get total count
@@ -408,6 +485,9 @@ router.get('/conversations', async (req: Request, res: Response) => {
     const total = countResult.rows[0]?.total || 0;
 
     // Get conversations
+    const keyParamIndex = paramIndex;
+    params.push(env.MESSAGE_ENCRYPTION_KEY);
+    paramIndex++;
     params.push(pageSize, offset);
     const result = await pool.query(
       `SELECT 
@@ -418,11 +498,20 @@ router.get('/conversations', async (req: Request, res: Response) => {
         c.last_message_at,
         c.topic,
         c.sentiment,
-        COUNT(m.id)::int as message_count
+        COUNT(m.id)::int as message_count,
+        lm.content as last_message
       FROM conversations c
       LEFT JOIN messages m ON m.conversation_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT 
+          COALESCE(m2.content, pgp_sym_decrypt(m2.content_encrypted, $${keyParamIndex})::text) as content
+        FROM messages m2
+        WHERE m2.conversation_id = c.id
+        ORDER BY m2.created_at DESC
+        LIMIT 1
+      ) lm ON true
       ${whereClause}
-      GROUP BY c.id, c.roblox_user_id, c.roblox_username, c.started_at, c.last_message_at, c.topic, c.sentiment
+      GROUP BY c.id, c.roblox_user_id, c.roblox_username, c.started_at, c.last_message_at, c.topic, c.sentiment, lm.content
       ORDER BY c.started_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       params
@@ -438,6 +527,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
         topic: row.topic,
         sentiment: row.sentiment,
         messageCount: row.message_count,
+        preview: truncateWords(row.last_message),
       })),
       pagination: {
         page,
@@ -457,7 +547,11 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
   try {
     const conversationId = req.params.id;
 
-    // Get conversation
+    const convConditions = ['id = $1'];
+    const convParams: unknown[] = [conversationId];
+    let convIndex = 2;
+    convIndex = applyAccountScope(req, convConditions, convParams, convIndex, 'account_number');
+
     const convResult = await pool.query(
       `SELECT 
         id,
@@ -468,8 +562,8 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
         topic,
         sentiment
       FROM conversations
-      WHERE id = $1`,
-      [conversationId]
+      WHERE ${convConditions.join(' AND ')}`,
+      convParams
     );
 
     if (convResult.rows.length === 0) {
@@ -477,17 +571,24 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
     }
 
     // Get messages
+    const msgConditions = ['conversation_id = $1'];
+    const msgParams: unknown[] = [conversationId];
+    let msgIndex = 2;
+    msgIndex = applyAccountScope(req, msgConditions, msgParams, msgIndex, 'account_number');
+    const keyParamIndex = msgIndex;
+    msgParams.push(env.MESSAGE_ENCRYPTION_KEY);
+
     const messagesResult = await pool.query(
       `SELECT 
         id,
         sender,
-        content,
+        COALESCE(content, pgp_sym_decrypt(content_encrypted, $${keyParamIndex})::text) as content,
         created_at,
         is_troll
       FROM messages
-      WHERE conversation_id = $1
+      WHERE ${msgConditions.join(' AND ')}
       ORDER BY created_at ASC`,
-      [conversationId]
+      msgParams
     );
 
     return res.json({
@@ -503,7 +604,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
       messages: messagesResult.rows.map((row) => ({
         id: row.id,
         sender: row.sender,
-        content: row.content,
+        content: truncateWords(row.content),
         createdAt: row.created_at,
         isTroll: row.is_troll,
       })),

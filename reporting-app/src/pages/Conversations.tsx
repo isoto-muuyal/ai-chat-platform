@@ -11,6 +11,7 @@ interface Conversation {
   topic: string | null;
   sentiment: string | null;
   messageCount: number;
+  preview: string;
 }
 
 export default function Conversations() {
@@ -155,6 +156,7 @@ export default function Conversations() {
               <th>Last Message</th>
               <th>Topic</th>
               <th>Sentiment</th>
+              <th>Preview</th>
               <th>Messages</th>
             </tr>
           </thead>
@@ -171,6 +173,7 @@ export default function Conversations() {
                 <td>{new Date(conv.lastMessageAt).toLocaleString()}</td>
                 <td>{conv.topic || '-'}</td>
                 <td>{conv.sentiment || '-'}</td>
+                <td>{conv.preview || '-'}</td>
                 <td>{conv.messageCount}</td>
               </tr>
             ))}
@@ -193,4 +196,3 @@ export default function Conversations() {
     </div>
   );
 }
-

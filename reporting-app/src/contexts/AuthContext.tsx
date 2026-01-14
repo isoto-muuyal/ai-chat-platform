@@ -1,14 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useSettings } from './SettingsContext';
 
 interface User {
-  username: string;
+  id: string;
+  email: string;
+  fullName: string;
+  company: string | null;
+  role: 'sysadmin' | 'user';
+  accountNumber: number;
+  language: 'en' | 'es';
+  theme: 'light' | 'dark';
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshMe: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,6 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { updateSettings } = useSettings();
 
   useEffect(() => {
     checkAuth();
@@ -28,7 +38,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (response.ok) {
         const data = await response.json();
-        setUser({ username: data.username });
+        const nextUser: User = {
+          id: data.id,
+          email: data.email,
+          fullName: data.fullName || '',
+          company: data.company || null,
+          role: data.role,
+          accountNumber: data.accountNumber,
+          language: data.language || 'en',
+          theme: data.theme || 'light',
+        };
+        setUser(nextUser);
+        updateSettings({
+          fullName: nextUser.fullName,
+          email: nextUser.email,
+          company: nextUser.company || '',
+          language: nextUser.language,
+          theme: nextUser.theme,
+        });
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -37,12 +64,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function login(username: string, password: string) {
+  async function login(email: string, password: string) {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -51,7 +78,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data = await response.json();
-    setUser({ username: data.username });
+    const nextUser: User = {
+      id: data.id,
+      email: data.email,
+      fullName: data.fullName || '',
+      company: data.company || null,
+      role: data.role,
+      accountNumber: data.accountNumber,
+      language: data.language || 'en',
+      theme: data.theme || 'light',
+    };
+    setUser(nextUser);
+    updateSettings({
+      fullName: nextUser.fullName,
+      email: nextUser.email,
+      company: nextUser.company || '',
+      language: nextUser.language,
+      theme: nextUser.theme,
+    });
   }
 
   async function logout() {
@@ -62,8 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
+  async function refreshMe() {
+    await checkAuth();
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshMe }}>
       {children}
     </AuthContext.Provider>
   );
@@ -76,4 +124,3 @@ export function useAuth() {
   }
   return context;
 }
-

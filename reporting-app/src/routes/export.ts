@@ -1,15 +1,24 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.js';
+import { applyAccountScope } from '../utils/accountScope.js';
 import ExcelJS from 'exceljs';
 
 const router = Router();
 
+const truncateWords = (text: string | null, maxWords = 5): string => {
+  if (!text) return '';
+  const words = text.trim().split(/\\s+/);
+  if (words.length <= maxWords) return text.trim();
+  return `${words.slice(0, maxWords).join(' ')}...`;
+};
+
 router.use(requireAuth);
 
 // Helper to build filter clause
-function buildFilterClause(req: Request): { clause: string; params: unknown[] } {
+function buildFilterClause(req: Request): { clause: string; params: unknown[]; nextIndex: number } {
   const conditions: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -56,16 +65,21 @@ function buildFilterClause(req: Request): { clause: string; params: unknown[] } 
     paramIndex++;
   }
 
+  paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'm.account_number');
+
   return {
     clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
     params,
+    nextIndex: paramIndex,
   };
 }
 
 // GET /api/export/messages.csv
 router.get('/messages.csv', async (req: Request, res: Response) => {
   try {
-    const { clause, params } = buildFilterClause(req);
+    const { clause, params, nextIndex } = buildFilterClause(req);
+    const keyParamIndex = nextIndex;
+    params.push(env.MESSAGE_ENCRYPTION_KEY);
 
     const query = `
       SELECT 
@@ -74,7 +88,7 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
         c.id as conversation_id,
         c.roblox_username,
         m.sender,
-        m.content,
+        COALESCE(m.content, pgp_sym_decrypt(m.content_encrypted, $${keyParamIndex})::text) as content,
         c.topic,
         c.sentiment,
         m.is_troll
@@ -92,13 +106,14 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
     res.write('ID,Created At,Conversation ID,Username,Sender,Content,Topic,Sentiment,Is Troll\n');
 
     for (const row of result.rows) {
+      const safeContent = truncateWords(row.content);
       const line = [
         row.id,
         row.created_at,
         row.conversation_id,
         `"${(row.roblox_username || '').replace(/"/g, '""')}"`,
         `"${(row.sender || '').replace(/"/g, '""')}"`,
-        `"${(row.content || '').replace(/"/g, '""')}"`,
+        `"${(safeContent || '').replace(/"/g, '""')}"`,
         row.topic || '',
         row.sentiment || '',
         row.is_troll ? 'true' : 'false',
@@ -116,7 +131,9 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
 // GET /api/export/messages.xlsx
 router.get('/messages.xlsx', async (req: Request, res: Response) => {
   try {
-    const { clause, params } = buildFilterClause(req);
+    const { clause, params, nextIndex } = buildFilterClause(req);
+    const keyParamIndex = nextIndex;
+    params.push(env.MESSAGE_ENCRYPTION_KEY);
 
     const query = `
       SELECT 
@@ -125,7 +142,7 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
         c.id as conversation_id,
         c.roblox_username,
         m.sender,
-        m.content,
+        COALESCE(m.content, pgp_sym_decrypt(m.content_encrypted, $${keyParamIndex})::text) as content,
         c.topic,
         c.sentiment,
         m.is_troll
@@ -166,7 +183,7 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
         conversation_id: row.conversation_id,
         username: row.roblox_username || '',
         sender: row.sender || '',
-        content: row.content || '',
+        content: truncateWords(row.content) || '',
         topic: row.topic || '',
         sentiment: row.sentiment || '',
         is_troll: row.is_troll ? 'Yes' : 'No',
@@ -195,16 +212,25 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
     cutoff.setUTCDate(cutoff.getUTCDate() - days);
     cutoff.setUTCHours(0, 0, 0, 0);
 
+    const conditions = ['started_at >= $1'];
+    const params: unknown[] = [cutoff];
+    let paramIndex = 2;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+    const whereClause = conditions.join(' AND ');
+
     const result = await pool.query(
       `SELECT 
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
-        ROUND(COUNT(*)::float / (SELECT COUNT(*) FROM conversations WHERE started_at >= $1)::float * 100, 2) as share
+        ROUND(
+          COUNT(*)::float / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::float, 0) * 100,
+          2
+        ) as share
       FROM conversations
-      WHERE started_at >= $1
+      WHERE ${whereClause}
       GROUP BY topic
       ORDER BY count DESC`,
-      [cutoff]
+      params
     );
 
     const workbook = new ExcelJS.Workbook();
