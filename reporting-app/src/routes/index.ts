@@ -6,10 +6,9 @@ const router = Router();
 // Protected dashboard route
 router.get('/', requireAuth, (req: Request, res: Response) => {
   res.render('dashboard', {
-    username: req.session?.username || 'Admin',
+    username: req.session?.fullName || req.session?.email || 'Admin',
   });
 });
 
 export default router;
-
 

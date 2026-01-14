@@ -9,18 +9,17 @@ router.use(requireAuth);
 // Conversations list page
 router.get('/', (req: Request, res: Response) => {
   res.render('conversations', {
-    username: req.session?.username || 'Admin',
+    username: req.session?.fullName || req.session?.email || 'Admin',
   });
 });
 
 // Conversation detail page
 router.get('/:id', (req: Request, res: Response) => {
   res.render('conversation-detail', {
-    username: req.session?.username || 'Admin',
+    username: req.session?.fullName || req.session?.email || 'Admin',
     conversationId: req.params.id,
   });
 });
 
 export default router;
-
 

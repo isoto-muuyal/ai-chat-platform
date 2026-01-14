@@ -108,25 +108,23 @@ router.post('/login', (req: Request, res: Response) => {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: 'Invalid request' });
-      } else {
-        logger.error({ err: error }, 'Login error');
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(400).json({ error: 'Invalid request' });
       }
+      logger.error({ err: error }, 'Login error');
+      return res.status(500).json({ error: 'Internal server error' });
     }
   })();
 });
 
 router.post('/logout', (req: Request, res: Response) => {
-  const username = req.session?.username;
+  const email = req.session?.email;
   req.session?.destroy((err) => {
     if (err) {
       logger.error({ err }, 'Error destroying session');
-      res.status(500).json({ error: 'Logout failed' });
-    } else {
-      logger.info({ username }, 'User logged out');
-      res.json({ success: true });
+      return res.status(500).json({ error: 'Logout failed' });
     }
+    logger.info({ email }, 'User logged out');
+    return res.json({ success: true });
   });
 });
 

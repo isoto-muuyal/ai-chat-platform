@@ -9,10 +9,9 @@ router.use(requireAuth);
 // Troll page
 router.get('/', (req: Request, res: Response) => {
   res.render('troll', {
-    username: req.session?.username || 'Admin',
+    username: req.session?.fullName || req.session?.email || 'Admin',
   });
 });
 
 export default router;
-
 
