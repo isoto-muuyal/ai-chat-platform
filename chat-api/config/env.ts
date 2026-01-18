@@ -16,11 +16,20 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
-  CHAT_API_KEY: z.string().min(1, 'CHAT_API_KEY is required'),
   GEMINI_KEY: z.string().min(1, 'GEMINI_KEY is required'),
   GEMINI_MODEL: z.string().min(1, 'GEMINI_MODEL is required'),
   DB_URL: z.string().url('DB_URL must be a valid PostgreSQL connection URL'),
   MESSAGE_ENCRYPTION_KEY: z.string().min(16, 'MESSAGE_ENCRYPTION_KEY is required'),
+  CHAT_RATE_LIMIT_WINDOW_MS: z
+    .string()
+    .default('60000')
+    .transform((val: string) => parseInt(val, 10))
+    .pipe(z.number().int().min(1000)),
+  CHAT_RATE_LIMIT_MAX: z
+    .string()
+    .default('60')
+    .transform((val: string) => parseInt(val, 10))
+    .pipe(z.number().int().min(1)),
 });
 
 export type Env = z.infer<typeof envSchema>;

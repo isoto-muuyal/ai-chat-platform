@@ -88,7 +88,8 @@ Stream chat responses using Server-Sent Events (SSE):
 ```bash
 curl -N -X POST http://localhost:3000/v1/chat/stream \
   -H "Content-Type: application/json" \
-  -d '{"message": "Hello!"}'
+  -H "x-api-key: <account-api-key>" \
+  -d '{"message": "Hello!", "accountNumber": 100001, "sourceClient": "default"}'
 ```
 
 The `-N` flag disables buffering so you can see events as they arrive.
@@ -99,14 +100,16 @@ event: meta
 data: {"ok":true,"cache":"miss"}
 
 event: token
-data: {"text":"Tema: demo\n"}
+data: {"text":"..."}
 
 event: done
-data: {"ok":true} 
+data: {"ok":true}
 ```
 
 **Request Body:** 
-- `message` (string, required): The chat message (max 200 characters)
+- `message` (string, required): The chat message (max 300 characters)
+- `accountNumber` (number, required): Tenant account number
+- `sourceClient` (string, optional): Source tag; must exist in account settings if provided
 
 ## Docker
 
@@ -156,9 +159,40 @@ curl http://localhost:3000/healthz
 
 ## Environment Variables
 
+### chat-api
+
 - `PORT` - Server port (default: 3000)
 - `LOG_LEVEL` - Logging level: fatal, error, warn, info, debug, trace (default: info)
 - `NODE_ENV` - Environment: development, production, test (default: development)
+- `DB_URL` - PostgreSQL connection URL
+- `GEMINI_KEY` - Gemini API key
+- `GEMINI_MODEL` - Gemini model name
+- `MESSAGE_ENCRYPTION_KEY` - Key for pgcrypto message encryption
+- `CHAT_RATE_LIMIT_WINDOW_MS` - Rate limit window in ms (default: 60000)
+- `CHAT_RATE_LIMIT_MAX` - Max requests per window (default: 60)
+
+### reporting-app
+
+- `PORT` - Server port (default: 3001)
+- `LOG_LEVEL` - Logging level: fatal, error, warn, info, debug, trace (default: info)
+- `NODE_ENV` - Environment: development, production, test (default: development)
+- `COOKIE_SECURE` - Use secure cookies (true/false)
+- `DB_URL` - PostgreSQL connection URL
+- `ADMIN_USER` - Bootstrap admin email
+- `ADMIN_PASS` - Bootstrap admin password
+- `SESSION_SECRET` - Session signing secret (min 32 chars)
+- `MESSAGE_ENCRYPTION_KEY` - Key for pgcrypto message encryption
+- `MAILERSEND_API_KEY` - MailerSend API key
+- `MAIL_FROM` - Sender email
+- `APP_BASE_URL` - Base URL for web app (used in links + CORS)
+- `CHAT_API_URL` - Chat API base URL for settings page
+- `AUTH_RATE_LIMIT_WINDOW_MS` - Rate limit window in ms (default: 60000)
+- `AUTH_RATE_LIMIT_MAX` - Max auth requests per window (default: 10)
+
+### Reporting Auth Notes
+
+- State-changing requests require the `x-csrf-token` header.
+- The token is returned by `/api/auth/login` and `/api/auth/me`.
 
 ## Features
 

@@ -15,7 +15,7 @@ type AppUser = {
 };
 
 export default function AdminUsers() {
-  const { user } = useAuth();
+  const { user, csrfToken } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -55,7 +55,10 @@ export default function AdminUsers() {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        },
         credentials: 'include',
         body: JSON.stringify({
           fullName: form.fullName,

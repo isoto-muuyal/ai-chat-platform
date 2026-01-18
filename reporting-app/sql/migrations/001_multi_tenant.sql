@@ -16,6 +16,16 @@ CREATE TABLE IF NOT EXISTS app_users (
   updated_at timestamptz NOT NULL DEFAULT NOW()
 );
 
+-- Account-level settings
+CREATE TABLE IF NOT EXISTS account_settings (
+  account_number bigint PRIMARY KEY,
+  prompt text,
+  sources text[] NOT NULL DEFAULT '{}',
+  api_key text UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_resets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,7 +39,10 @@ CREATE TABLE IF NOT EXISTS password_resets (
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS account_number bigint;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS account_number bigint;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS content_encrypted bytea;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS source_client text;
 ALTER TABLE analytics ADD COLUMN IF NOT EXISTS account_number bigint;
+ALTER TABLE analytics ADD COLUMN IF NOT EXISTS source_client text;
+ALTER TABLE account_settings ADD COLUMN IF NOT EXISTS api_key text;
 
 -- Optional: backfill account_number for existing rows (replace with your default account number)
 -- UPDATE conversations SET account_number = 100001 WHERE account_number IS NULL;

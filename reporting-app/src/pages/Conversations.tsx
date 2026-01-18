@@ -12,6 +12,7 @@ interface Conversation {
   sentiment: string | null;
   messageCount: number;
   preview: string;
+  sourceClient?: string | null;
 }
 
 export default function Conversations() {
@@ -156,6 +157,7 @@ export default function Conversations() {
               <th>Last Message</th>
               <th>Topic</th>
               <th>Sentiment</th>
+              <th>Source</th>
               <th>Preview</th>
               <th>Messages</th>
             </tr>
@@ -173,6 +175,7 @@ export default function Conversations() {
                 <td>{new Date(conv.lastMessageAt).toLocaleString()}</td>
                 <td>{conv.topic || '-'}</td>
                 <td>{conv.sentiment || '-'}</td>
+                <td>{conv.sourceClient || '-'}</td>
                 <td>{conv.preview || '-'}</td>
                 <td>{conv.messageCount}</td>
               </tr>

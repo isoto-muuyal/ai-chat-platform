@@ -64,6 +64,12 @@ function buildFilterClause(req: Request): { clause: string; params: unknown[]; n
     params.push(isTroll);
     paramIndex++;
   }
+  if (req.query.source || req.query.sourceClient) {
+    const source = (req.query.source || req.query.sourceClient) as string;
+    conditions.push(`m.source_client = $${paramIndex}`);
+    params.push(source);
+    paramIndex++;
+  }
 
   paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'm.account_number');
 
@@ -91,7 +97,8 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
         COALESCE(m.content, pgp_sym_decrypt(m.content_encrypted, $${keyParamIndex})::text) as content,
         c.topic,
         c.sentiment,
-        m.is_troll
+        m.is_troll,
+        m.source_client
       FROM messages m
       JOIN conversations c ON m.conversation_id = c.id
       ${clause}
@@ -103,7 +110,7 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="messages.csv"');
 
-    res.write('ID,Created At,Conversation ID,Username,Sender,Content,Topic,Sentiment,Is Troll\n');
+    res.write('ID,Created At,Conversation ID,Username,Sender,Content,Topic,Sentiment,Is Troll,Source\n');
 
     for (const row of result.rows) {
       const safeContent = truncateWords(row.content);
@@ -117,6 +124,7 @@ router.get('/messages.csv', async (req: Request, res: Response) => {
         row.topic || '',
         row.sentiment || '',
         row.is_troll ? 'true' : 'false',
+        row.source_client || '',
       ].join(',') + '\n';
       res.write(line);
     }
@@ -145,7 +153,8 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
         COALESCE(m.content, pgp_sym_decrypt(m.content_encrypted, $${keyParamIndex})::text) as content,
         c.topic,
         c.sentiment,
-        m.is_troll
+        m.is_troll,
+        m.source_client
       FROM messages m
       JOIN conversations c ON m.conversation_id = c.id
       ${clause}
@@ -167,6 +176,7 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
       { header: 'Topic', key: 'topic', width: 20 },
       { header: 'Sentiment', key: 'sentiment', width: 15 },
       { header: 'Is Troll', key: 'is_troll', width: 10 },
+      { header: 'Source', key: 'source', width: 16 },
     ];
 
     worksheet.getRow(1).font = { bold: true };
@@ -187,6 +197,7 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
         topic: row.topic || '',
         sentiment: row.sentiment || '',
         is_troll: row.is_troll ? 'Yes' : 'No',
+        source: row.source_client || '',
       });
     });
 
@@ -228,7 +239,7 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
         ) as share
       FROM conversations
       WHERE ${whereClause}
-      GROUP BY topic
+      GROUP BY COALESCE(topic, 'general')
       ORDER BY count DESC`,
       params
     );

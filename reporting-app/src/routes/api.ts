@@ -103,7 +103,7 @@ router.get('/overview', async (req: Request, res: Response) => {
         COUNT(*)::int as count
       FROM conversations
       WHERE ${topTopicConditions.join(' AND ')}
-      GROUP BY topic
+      GROUP BY COALESCE(topic, 'general')
       ORDER BY count DESC
       LIMIT $${topTopicIndex}`,
       [...topTopicParams, 10]
@@ -191,7 +191,7 @@ router.get('/topics', async (req: Request, res: Response) => {
         ) as share
       FROM conversations
       WHERE ${whereClause}
-      GROUP BY topic
+      GROUP BY COALESCE(topic, 'general')
       ORDER BY count DESC`,
       params
     );
@@ -412,7 +412,7 @@ router.get('/users', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/conversations?from=YYYY-MM-DD&to=YYYY-MM-DD&topic=&sentiment=&user=&is_troll=&page=&pageSize=
+// GET /api/conversations?from=YYYY-MM-DD&to=YYYY-MM-DD&topic=&sentiment=&user=&is_troll=&source=&page=&pageSize=
 router.get('/conversations', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -473,6 +473,16 @@ router.get('/conversations', async (req: Request, res: Response) => {
       paramIndex++;
     }
 
+    if (req.query.source || req.query.sourceClient) {
+      const source = (req.query.source || req.query.sourceClient) as string;
+      conditions.push(`EXISTS (
+        SELECT 1 FROM messages m
+        WHERE m.conversation_id = c.id AND m.source_client = $${paramIndex}
+      )`);
+      params.push(source);
+      paramIndex++;
+    }
+
     paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'c.account_number');
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -499,19 +509,21 @@ router.get('/conversations', async (req: Request, res: Response) => {
         c.topic,
         c.sentiment,
         COUNT(m.id)::int as message_count,
-        lm.content as last_message
+        lm.content as last_message,
+        lm.source_client as source_client
       FROM conversations c
       LEFT JOIN messages m ON m.conversation_id = c.id
       LEFT JOIN LATERAL (
         SELECT 
-          COALESCE(m2.content, pgp_sym_decrypt(m2.content_encrypted, $${keyParamIndex})::text) as content
+          COALESCE(m2.content, pgp_sym_decrypt(m2.content_encrypted, $${keyParamIndex})::text) as content,
+          m2.source_client
         FROM messages m2
         WHERE m2.conversation_id = c.id
         ORDER BY m2.created_at DESC
         LIMIT 1
       ) lm ON true
       ${whereClause}
-      GROUP BY c.id, c.roblox_user_id, c.roblox_username, c.started_at, c.last_message_at, c.topic, c.sentiment, lm.content
+      GROUP BY c.id, c.roblox_user_id, c.roblox_username, c.started_at, c.last_message_at, c.topic, c.sentiment, lm.content, lm.source_client
       ORDER BY c.started_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       params
@@ -528,6 +540,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
         sentiment: row.sentiment,
         messageCount: row.message_count,
         preview: truncateWords(row.last_message),
+        sourceClient: row.source_client,
       })),
       pagination: {
         page,
@@ -584,7 +597,8 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
         sender,
         COALESCE(content, pgp_sym_decrypt(content_encrypted, $${keyParamIndex})::text) as content,
         created_at,
-        is_troll
+        is_troll,
+        source_client
       FROM messages
       WHERE ${msgConditions.join(' AND ')}
       ORDER BY created_at ASC`,
@@ -607,6 +621,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
         content: truncateWords(row.content),
         createdAt: row.created_at,
         isTroll: row.is_troll,
+        sourceClient: row.source_client,
       })),
     });
   } catch (err) {

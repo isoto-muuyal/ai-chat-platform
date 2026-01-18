@@ -13,6 +13,7 @@ const chatRequestSchema = z.object({
     .min(1, 'Message is required')
     .max(300, 'Message must be 300 characters or less'),
   accountNumber: z.coerce.number().int().positive(),
+  sourceClient: z.string().min(1).max(64).optional(),
   playerId: z.string().min(1).max(64).optional(),
   robloxUsername: z.string().min(1).max(64).optional(),
   sessionId: z.string().min(1).max(64).optional(),
@@ -36,6 +37,36 @@ const inferenceSchema = z.object({
   is_troll: z.boolean().optional().nullable(),
 });
 
+const accountSettingsSchema = z.object({
+  prompt: z.string().nullable().optional(),
+  sources: z.array(z.string()).nullable().optional(),
+  api_key: z.string().nullable().optional(),
+});
+
+const getAccountSettings = async (accountNumber: number) => {
+  const result = await pool.query(
+    `SELECT prompt, sources, api_key
+     FROM account_settings
+     WHERE account_number = $1`,
+    [accountNumber]
+  );
+
+  if (result.rows.length === 0) {
+    return { prompt: null, sources: [], api_key: null };
+  }
+
+  const parsed = accountSettingsSchema.safeParse(result.rows[0]);
+  if (!parsed.success) {
+    return { prompt: null, sources: [], api_key: null };
+  }
+
+  return {
+    prompt: parsed.data.prompt ?? null,
+    sources: parsed.data.sources ?? [],
+    api_key: parsed.data.api_key ?? null,
+  };
+};
+
 const inferMeta = async (message: string): Promise<{
   topic: string | null;
   sentiment: 'positive' | 'neutral' | 'negative' | null;
@@ -52,6 +83,8 @@ const inferMeta = async (message: string): Promise<{
               'You are a classifier. Return ONLY a JSON object with keys: ' +
               'topic (string or null), sentiment ("positive"|"neutral"|"negative" or null), ' +
               'is_troll (boolean). No extra text.\n\n' +
+              'Mark is_troll=true when the message includes harassment, hate speech, threats, ' +
+              'targeted insults, sexual harassment, doxxing, or repeated spam/abuse.\n\n' +
               `Message: ${message}`,
           },
         ],
@@ -104,6 +137,7 @@ const persistInteraction = async (params: {
   topic: string | null;
   sentiment: 'positive' | 'neutral' | 'negative' | null;
   isTroll: boolean;
+  sourceClient: string | null;
 }): Promise<void> => {
   const {
     conversationId,
@@ -116,6 +150,7 @@ const persistInteraction = async (params: {
     topic,
     sentiment,
     isTroll,
+    sourceClient,
   } = params;
   const now = new Date();
   const client = await pool.connect();
@@ -161,8 +196,9 @@ const persistInteraction = async (params: {
         content_encrypted,
         created_at,
         account_number,
-        is_troll
-      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9)`,
+        is_troll,
+        source_client
+      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9, $10)`,
       [
         randomUUID(),
         conversationId,
@@ -173,6 +209,7 @@ const persistInteraction = async (params: {
         now,
         accountNumber,
         isTroll,
+        sourceClient,
       ]
     );
 
@@ -185,8 +222,9 @@ const persistInteraction = async (params: {
         content_encrypted,
         created_at,
         account_number,
-        is_troll
-      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9)`,
+        is_troll,
+        source_client
+      ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, $8, $9, $10)`,
       [
         randomUUID(),
         conversationId,
@@ -197,6 +235,7 @@ const persistInteraction = async (params: {
         now,
         accountNumber,
         false,
+        sourceClient,
       ]
     );
 
@@ -208,9 +247,10 @@ const persistInteraction = async (params: {
           account_number,
           country,
           inferred_age_range,
-          created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [randomUUID(), robloxUserId, accountNumber, country, null, now]
+          created_at,
+          source_client
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [randomUUID(), robloxUserId, accountNumber, country, null, now, sourceClient]
       );
     }
 
@@ -223,12 +263,7 @@ const persistInteraction = async (params: {
   }
 };
 
-router.post('/stream', (req: Request, res: Response) => {
-  const apiKey = req.header('x-api-key');
-  if (!apiKey || apiKey !== env.CHAT_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+router.post('/stream', async (req: Request, res: Response) => {
   // Validate request body
   const validationResult = chatRequestSchema.safeParse(req.body);
 
@@ -242,6 +277,7 @@ router.post('/stream', (req: Request, res: Response) => {
   const {
     message,
     accountNumber,
+    sourceClient,
     playerId,
     robloxUsername,
     sessionId,
@@ -254,9 +290,25 @@ router.post('/stream', (req: Request, res: Response) => {
   const conversationId = providedConversationId ?? randomUUID();
   const robloxUserId = playerId && Number.isFinite(Number(playerId)) ? Number(playerId) : null;
 
+  const apiKey = req.header('x-api-key');
+  const accountSettings = await getAccountSettings(accountNumber);
+  const expectedKey = accountSettings.api_key;
+
+  if (!apiKey || !expectedKey || apiKey !== expectedKey) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const normalizedSources = (accountSettings.sources || []).map((value) => value.trim()).filter(Boolean);
+  if (sourceClient && normalizedSources.length > 0 && !normalizedSources.includes(sourceClient)) {
+    return res.status(400).json({ error: 'Invalid sourceClient' });
+  }
+
+  const resolvedSourceClient = sourceClient || normalizedSources[0] || null;
+
   logger.info(
     {
       accountNumber,
+      sourceClient: resolvedSourceClient,
       playerId,
       robloxUsername,
       sessionId,
@@ -270,7 +322,7 @@ router.post('/stream', (req: Request, res: Response) => {
   );
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
-  const geminiBody = {
+  const geminiBody: Record<string, unknown> = {
     contents: [
       {
         role: 'user',
@@ -278,6 +330,11 @@ router.post('/stream', (req: Request, res: Response) => {
       },
     ],
   };
+  if (accountSettings.prompt && accountSettings.prompt.trim()) {
+    geminiBody.systemInstruction = {
+      parts: [{ text: accountSettings.prompt }],
+    };
+  }
 
   const geminiRequest = async () => {
     const response = await fetch(geminiUrl, {
@@ -343,6 +400,7 @@ router.post('/stream', (req: Request, res: Response) => {
           topic: normalizedTopic,
           sentiment,
           isTroll: is_troll,
+          sourceClient: resolvedSourceClient,
         });
       })().catch((err) => {
         logger.error({ err }, 'Failed to persist chat interaction');

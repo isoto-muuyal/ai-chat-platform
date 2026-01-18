@@ -23,15 +23,17 @@ app.use(pinoHttp({ logger }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS - same origin only
+const allowedOrigin = env.APP_BASE_URL.replace(/\/$/, '');
+
+// CORS - allow configured origin only
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (!origin || origin === req.headers.host) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  if (origin && origin === allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -52,6 +54,25 @@ app.use(
     },
   })
 );
+
+const csrfSafeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+app.use((req, res, next) => {
+  if (!req.session?.authenticated) {
+    return next();
+  }
+
+  if (csrfSafeMethods.has(req.method)) {
+    return next();
+  }
+
+  const csrfToken = req.header('x-csrf-token');
+  if (!csrfToken || csrfToken !== req.session.csrfToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+
+  return next();
+});
 
 // API routes
 app.use('/api/auth', authRouter);

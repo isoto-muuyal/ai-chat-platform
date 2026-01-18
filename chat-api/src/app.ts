@@ -1,6 +1,8 @@
 import express from 'express';
 import pinoHttp from 'pino-http';
+import rateLimit from 'express-rate-limit';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 import routes from '../routes/index.js';
 
 const app = express();
@@ -11,6 +13,15 @@ app.use(pinoHttp({ logger }));
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const chatLimiter = rateLimit({
+  windowMs: env.CHAT_RATE_LIMIT_WINDOW_MS,
+  max: env.CHAT_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/v1/chat', chatLimiter);
 
 // Routes
 app.use(routes);
@@ -27,4 +38,3 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 export default app;
-

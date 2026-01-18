@@ -8,6 +8,7 @@ interface Message {
   content: string;
   createdAt: string;
   isTroll: boolean;
+  sourceClient?: string | null;
 }
 
 interface Conversation {
@@ -96,6 +97,7 @@ export default function ConversationDetail() {
               <div className="message-header">
                 <span className="sender">{message.sender}</span>
                 <span className="time">{new Date(message.createdAt).toLocaleString()}</span>
+                {message.sourceClient && <span className="badge">{message.sourceClient}</span>}
                 {message.isTroll && <span className="badge">Troll</span>}
               </div>
               <div className="message-content">{message.content}</div>
@@ -106,4 +108,3 @@ export default function ConversationDetail() {
     </div>
   );
 }
-

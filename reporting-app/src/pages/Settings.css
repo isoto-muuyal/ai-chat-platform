@@ -24,12 +24,23 @@
 }
 
 .settings-form input,
-.settings-form select {
+.settings-form select,
+.settings-form textarea {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-alt);
   color: var(--text);
+}
+
+.settings-form textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.settings-form .help {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .save-btn {
@@ -49,4 +60,14 @@
 .status {
   font-size: 14px;
   color: var(--text-muted);
+}
+
+.settings-section {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-section h3 {
+  margin: 0 0 12px;
 }

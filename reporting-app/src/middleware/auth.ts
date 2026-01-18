@@ -11,6 +11,7 @@ declare module 'express-session' {
     theme?: 'light' | 'dark';
     role?: 'sysadmin' | 'user';
     accountNumber?: number;
+    csrfToken?: string;
   }
 }
 

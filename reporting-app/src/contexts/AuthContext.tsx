@@ -15,6 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  csrfToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const { updateSettings } = useSettings();
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           theme: data.theme || 'light',
         };
         setUser(nextUser);
+        setCsrfToken(data.csrfToken || null);
         updateSettings({
           fullName: nextUser.fullName,
           email: nextUser.email,
@@ -89,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       theme: data.theme || 'light',
     };
     setUser(nextUser);
+    setCsrfToken(data.csrfToken || null);
     updateSettings({
       fullName: nextUser.fullName,
       email: nextUser.email,
@@ -99,11 +103,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    const headers: HeadersInit = {};
+    if (csrfToken) {
+      headers['x-csrf-token'] = csrfToken;
+    }
     await fetch('/api/auth/logout', {
       method: 'POST',
+      headers,
       credentials: 'include',
     });
     setUser(null);
+    setCsrfToken(null);
   }
 
   async function refreshMe() {
@@ -111,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshMe }}>
+    <AuthContext.Provider value={{ user, loading, csrfToken, login, logout, refreshMe }}>
       {children}
     </AuthContext.Provider>
   );
