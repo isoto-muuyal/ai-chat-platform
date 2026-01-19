@@ -194,68 +194,68 @@ router.post('/logout', (req: Request, res: Response) => {
   });
 });
 
-router.get('/account-settings', (req: Request, res: Response) => {
+router.get('/account-settings', async (req: Request, res: Response) => {
   if (!req.session?.authenticated || req.session.accountNumber === undefined) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  void (async () => {
-    try {
-      const settings = await ensureAccountSettings(req.session.accountNumber);
-      return res.json({
-        prompt: settings.prompt || '',
-        sources: settings.sources || [],
-        apiKey: settings.api_key,
-        apiUrl: env.CHAT_API_URL,
-        apiHeader: 'x-api-key',
-      });
-    } catch (error) {
-      logger.error({ err: error }, 'Error loading account settings');
-      return res.status(500).json({ error: 'Failed to load account settings' });
-    }
-  })();
+  const accountNumber = req.session.accountNumber;
+
+  try {
+    const settings = await ensureAccountSettings(accountNumber);
+    return res.json({
+      prompt: settings.prompt || '',
+      sources: settings.sources || [],
+      apiKey: settings.api_key,
+      apiUrl: env.CHAT_API_URL,
+      apiHeader: 'x-api-key',
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error loading account settings');
+    return res.status(500).json({ error: 'Failed to load account settings' });
+  }
 });
 
-router.put('/account-settings', (req: Request, res: Response) => {
+router.put('/account-settings', async (req: Request, res: Response) => {
   if (!req.session?.authenticated || req.session.accountNumber === undefined) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  void (async () => {
-    try {
-      const updates = accountSettingsSchema.parse(req.body);
-      const sources = normalizeSources(updates.sources);
-      const prompt = updates.prompt ?? null;
+  const accountNumber = req.session.accountNumber;
 
-      const result = await pool.query(
-        `INSERT INTO account_settings (account_number, prompt, sources, api_key, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW())
-         ON CONFLICT (account_number)
-         DO UPDATE SET
-           prompt = $2,
-           sources = $3,
-           api_key = COALESCE(account_settings.api_key, $4),
-           updated_at = NOW()
-         RETURNING account_number, prompt, sources, api_key`,
-        [req.session.accountNumber, prompt, sources, crypto.randomBytes(24).toString('base64url')]
-      );
+  try {
+    const updates = accountSettingsSchema.parse(req.body);
+    const sources = normalizeSources(updates.sources);
+    const prompt = updates.prompt ?? null;
 
-      const settings = result.rows[0];
-      return res.json({
-        prompt: settings.prompt || '',
-        sources: settings.sources || [],
-        apiKey: settings.api_key,
-        apiUrl: env.CHAT_API_URL,
-        apiHeader: 'x-api-key',
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: 'Invalid request' });
-      }
-      logger.error({ err: error }, 'Error updating account settings');
-      return res.status(500).json({ error: 'Failed to update account settings' });
+    const result = await pool.query(
+      `INSERT INTO account_settings (account_number, prompt, sources, api_key, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       ON CONFLICT (account_number)
+       DO UPDATE SET
+         prompt = $2,
+         sources = $3,
+         api_key = COALESCE(account_settings.api_key, $4),
+         updated_at = NOW()
+       RETURNING account_number, prompt, sources, api_key`,
+      [accountNumber, prompt, sources, crypto.randomBytes(24).toString('base64url')]
+    );
+
+    const settings = result.rows[0];
+    return res.json({
+      prompt: settings.prompt || '',
+      sources: settings.sources || [],
+      apiKey: settings.api_key,
+      apiUrl: env.CHAT_API_URL,
+      apiHeader: 'x-api-key',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
     }
-  })();
+    logger.error({ err: error }, 'Error updating account settings');
+    return res.status(500).json({ error: 'Failed to update account settings' });
+  }
 });
 
 router.get('/me', (req: Request, res: Response) => {
