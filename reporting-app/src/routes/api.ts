@@ -186,7 +186,7 @@ router.get('/topics', async (req: Request, res: Response) => {
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
         ROUND(
-          COUNT(*)::float / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::float, 0) * 100,
+          COUNT(*)::numeric / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::numeric, 0) * 100,
           2
         ) as share
       FROM conversations
