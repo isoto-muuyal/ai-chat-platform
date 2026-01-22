@@ -348,23 +348,20 @@ router.post('/stream', async (req: Request, res: Response) => {
   );
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
+  const prompt = accountSettings.prompt?.trim();
+  const userText = prompt ? `${prompt}\n\nUsuario: ${message}` : message;
   const geminiBody: Record<string, unknown> = {
     contents: [
       {
         role: 'user',
-        parts: [{ text: message }],
+        parts: [{ text: userText }],
       },
     ],
   };
-  if (accountSettings.prompt && accountSettings.prompt.trim()) {
-    geminiBody.systemInstruction = {
-      parts: [{ text: accountSettings.prompt }],
-    };
-  }
   logger.info(
     {
       accountNumber,
-      hasSystemInstruction: Boolean(geminiBody.systemInstruction),
+      hasPrompt: Boolean(prompt),
       model: env.GEMINI_MODEL,
     },
     'gemini request prepared'
