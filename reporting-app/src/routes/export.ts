@@ -215,6 +215,65 @@ router.get('/messages.xlsx', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/export/recommendations.xlsx
+router.get('/recommendations.xlsx', async (req: Request, res: Response) => {
+  try {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await pool.query(
+      `SELECT id, roblox_user_id, recommendation, source_type, created_at
+       FROM recommendations
+       ${whereClause}
+       ORDER BY created_at DESC`,
+      params
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Recommendations');
+
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Roblox User ID', key: 'roblox_user_id', width: 18 },
+      { header: 'Recommendation', key: 'recommendation', width: 60 },
+      { header: 'Source', key: 'source_type', width: 16 },
+      { header: 'Created At', key: 'created_at', width: 20 },
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    result.rows.forEach((row) => {
+      worksheet.addRow({
+        id: row.id,
+        roblox_user_id: row.roblox_user_id,
+        recommendation: row.recommendation,
+        source_type: row.source_type,
+        created_at: row.created_at,
+      });
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="recommendations.xlsx"');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    logger.error({ err }, 'Error exporting recommendations');
+    res.status(500).json({ error: 'Failed to export recommendations' });
+  }
+});
+
 // GET /api/export/topics.xlsx?days=30
 router.get('/topics.xlsx', async (req: Request, res: Response) => {
   try {

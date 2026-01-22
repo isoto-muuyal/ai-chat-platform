@@ -630,4 +630,54 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/recommendations?page=1&pageSize=20
+router.get('/recommendations', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || 20, 20);
+    const offset = (page - 1) * pageSize;
+
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int as total FROM recommendations ${whereClause}`,
+      params
+    );
+    const total = countResult.rows[0]?.total || 0;
+
+    params.push(pageSize, offset);
+    const result = await pool.query(
+      `SELECT id, roblox_user_id, recommendation, source_type, created_at
+       FROM recommendations
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      params
+    );
+
+    res.json({
+      recommendations: result.rows.map((row) => ({
+        id: row.id,
+        robloxUserId: row.roblox_user_id?.toString(),
+        recommendation: row.recommendation,
+        sourceType: row.source_type,
+        createdAt: row.created_at,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching recommendations');
+    res.status(500).json({ error: 'Failed to fetch recommendations' });
+  }
+});
+
 export default router;

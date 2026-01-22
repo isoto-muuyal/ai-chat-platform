@@ -32,6 +32,7 @@ const translations = {
   troll: { en: 'Troll', es: 'Troll' },
   users: { en: 'Users', es: 'Usuarios' },
   conversations: { en: 'Conversations', es: 'Conversaciones' },
+  recommendations: { en: 'Recommendations', es: 'Recomendaciones' },
   settings: { en: 'Settings', es: 'Ajustes' },
   welcome: { en: 'Welcome', es: 'Bienvenido' },
   logout: { en: 'Logout', es: 'Salir' },

@@ -28,6 +28,7 @@ export default function Layout() {
           <Link to="/troll">{t('troll')}</Link>
           <Link to="/users">{t('users')}</Link>
           <Link to="/conversations">{t('conversations')}</Link>
+          <Link to="/recommendations">{t('recommendations')}</Link>
           <Link to="/settings">{t('settings')}</Link>
           {user?.role === 'sysadmin' && <Link to="/admin/users">Admin</Link>}
         </nav>

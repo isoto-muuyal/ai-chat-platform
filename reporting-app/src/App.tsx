@@ -9,6 +9,7 @@ import Troll from './pages/Troll';
 import Users from './pages/Users';
 import Conversations from './pages/Conversations';
 import ConversationDetail from './pages/ConversationDetail';
+import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
 import AdminUsers from './pages/AdminUsers';
 import Layout from './components/Layout';
@@ -51,6 +52,7 @@ function App() {
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />
+          <Route path="recommendations" element={<Recommendations />} />
         </Route>
       </Routes>
     </AuthProvider>

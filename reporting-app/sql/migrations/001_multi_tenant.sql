@@ -44,6 +44,16 @@ ALTER TABLE analytics ADD COLUMN IF NOT EXISTS account_number bigint;
 ALTER TABLE analytics ADD COLUMN IF NOT EXISTS source_client text;
 ALTER TABLE account_settings ADD COLUMN IF NOT EXISTS api_key text;
 
+-- Recommendations
+CREATE TABLE IF NOT EXISTS recommendations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_number bigint NOT NULL,
+  roblox_user_id bigint NOT NULL,
+  recommendation text NOT NULL,
+  source_type text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW()
+);
+
 -- Optional: backfill account_number for existing rows (replace with your default account number)
 -- UPDATE conversations SET account_number = 100001 WHERE account_number IS NULL;
 -- UPDATE messages SET account_number = 100001 WHERE account_number IS NULL;
