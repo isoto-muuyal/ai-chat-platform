@@ -292,14 +292,40 @@ router.post('/stream', async (req: Request, res: Response) => {
 
   const apiKey = req.header('x-api-key');
   const accountSettings = await getAccountSettings(accountNumber);
+  logger.info(
+    {
+      accountNumber,
+      hasPrompt: Boolean(accountSettings.prompt && accountSettings.prompt.trim()),
+      promptLength: accountSettings.prompt ? accountSettings.prompt.length : 0,
+      sourcesCount: accountSettings.sources?.length || 0,
+      hasApiKey: Boolean(accountSettings.api_key),
+    },
+    'account settings loaded'
+  );
   const expectedKey = accountSettings.api_key;
 
   if (!apiKey || !expectedKey || apiKey !== expectedKey) {
+    logger.warn(
+      {
+        accountNumber,
+        hasApiKeyHeader: Boolean(apiKey),
+        hasExpectedKey: Boolean(expectedKey),
+      },
+      'unauthorized request'
+    );
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const normalizedSources = (accountSettings.sources || []).map((value) => value.trim()).filter(Boolean);
   if (sourceClient && normalizedSources.length > 0 && !normalizedSources.includes(sourceClient)) {
+    logger.warn(
+      {
+        accountNumber,
+        sourceClient,
+        allowedSources: normalizedSources,
+      },
+      'invalid source client'
+    );
     return res.status(400).json({ error: 'Invalid sourceClient' });
   }
 
@@ -335,6 +361,14 @@ router.post('/stream', async (req: Request, res: Response) => {
       parts: [{ text: accountSettings.prompt }],
     };
   }
+  logger.info(
+    {
+      accountNumber,
+      hasSystemInstruction: Boolean(geminiBody.systemInstruction),
+      model: env.GEMINI_MODEL,
+    },
+    'gemini request prepared'
+  );
 
   const geminiRequest = async () => {
     const response = await fetch(geminiUrl, {
@@ -345,12 +379,17 @@ router.post('/stream', async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error(
+        { status: response.status, errorText },
+        'gemini request failed'
+      );
       throw new Error(`Gemini error ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
+      logger.error({ data }, 'gemini response missing text');
       throw new Error('Gemini response missing text');
     }
 
