@@ -8,7 +8,7 @@ interface User {
   company: string | null;
   role: 'sysadmin' | 'user';
   accountNumber: number;
-  language: 'en' | 'es';
+  language: 'en' | 'es' | 'fr';
   theme: 'light' | 'dark';
 }
 

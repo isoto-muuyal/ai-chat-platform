@@ -282,7 +282,7 @@ const updateMeSchema = z.object({
   fullName: z.string().min(1).max(120).optional(),
   email: z.string().email().optional(),
   company: z.string().max(120).optional().nullable(),
-  language: z.enum(['en', 'es']).optional(),
+  language: z.enum(['en', 'es', 'fr']).optional(),
   theme: z.enum(['light', 'dark']).optional(),
   currentPassword: z.string().min(1).optional(),
   newPassword: z.string().min(8).max(128).optional(),

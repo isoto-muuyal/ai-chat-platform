@@ -7,7 +7,7 @@ declare module 'express-session' {
     email?: string;
     fullName?: string;
     company?: string | null;
-    language?: 'en' | 'es';
+    language?: 'en' | 'es' | 'fr';
     theme?: 'light' | 'dark';
     role?: 'sysadmin' | 'user';
     accountNumber?: number;

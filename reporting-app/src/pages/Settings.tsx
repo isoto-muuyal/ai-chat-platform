@@ -139,9 +139,10 @@ export default function Settings() {
         </label>
         <label>
           {t('language')}
-          <select value={language} onChange={(e) => setLanguage(e.target.value as 'en' | 'es')}>
+          <select value={language} onChange={(e) => setLanguage(e.target.value as 'en' | 'es' | 'fr')}>
             <option value="en">{t('english')}</option>
             <option value="es">{t('spanish')}</option>
+            <option value="fr">{t('french')}</option>
           </select>
         </label>
         <label>
