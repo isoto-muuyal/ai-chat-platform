@@ -4,10 +4,10 @@ local RecommendationEvent = game.ReplicatedStorage:WaitForChild("RecommendationE
 local screenGui = script.Parent
 local container = screenGui:WaitForChild("Container")
 local ideasBox = container:WaitForChild("IdeasBox")
-local sourceBox = container:WaitForChild("SourceBox")
 local submitButton = container:WaitForChild("SubmitButton")
 local closeButton = container:WaitForChild("CloseButton")
 local statusLabel = container:FindFirstChild("StatusLabel")
+local SOURCE_CLIENT = "roblox"
 
 local function setStatus(text)
 	if statusLabel and statusLabel:IsA("TextLabel") then
@@ -31,9 +31,8 @@ submitButton.MouseButton1Click:Connect(function()
 		return
 	end
 
-	local sourceType = sourceBox.Text
 	setStatus("Sending...")
-	RecommendationEvent:FireServer(ideas, sourceType)
+	RecommendationEvent:FireServer(ideas, SOURCE_CLIENT)
 end)
 
 closeButton.MouseButton1Click:Connect(function()
@@ -50,7 +49,6 @@ RecommendationEvent.OnClientEvent:Connect(function(action, ok, message)
 		if ok then
 			setStatus("Sent.")
 			ideasBox.Text = ""
-			sourceBox.Text = ""
 			closeUI()
 		else
 			setStatus("Error: " .. tostring(message))
