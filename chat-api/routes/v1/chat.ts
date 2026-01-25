@@ -81,8 +81,10 @@ const inferMeta = async (message: string): Promise<{
           {
             text:
               'You are a classifier. Return ONLY a JSON object with keys: ' +
-              'topic (string or null), sentiment ("positive"|"neutral"|"negative" or null), ' +
+              'topic (string), sentiment ("positive"|"neutral"|"negative" or null), ' +
               'is_troll (boolean). No extra text.\n\n' +
+              'Pick EXACTLY ONE topic from: people, new projects, social problems, ' +
+              'fight with the AI, debate ideas, general. If not identifiable, use "general".\n\n' +
               'Mark is_troll=true when the message includes harassment, hate speech, threats, ' +
               'targeted insults, sexual harassment, doxxing, or repeated spam/abuse.\n\n' +
               `Message: ${message}`,
