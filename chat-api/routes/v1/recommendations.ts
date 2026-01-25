@@ -79,9 +79,10 @@ router.post('/', async (req: Request, res: Response) => {
         roblox_user_id,
         recommendation,
         source_type,
+        status,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, NOW())`,
-      [randomUUID(), accountNumber, robloxUserId, ideas, sourceType]
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [randomUUID(), accountNumber, robloxUserId, ideas, sourceType, 'New']
     );
 
     return res.json({ ok: true });

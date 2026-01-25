@@ -51,8 +51,11 @@ CREATE TABLE IF NOT EXISTS recommendations (
   roblox_user_id bigint NOT NULL,
   recommendation text NOT NULL,
   source_type text NOT NULL,
+  status text NOT NULL DEFAULT 'New',
   created_at timestamptz NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'New';
 
 -- Optional: backfill account_number for existing rows (replace with your default account number)
 -- UPDATE conversations SET account_number = 100001 WHERE account_number IS NULL;

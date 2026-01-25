@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
@@ -636,11 +637,21 @@ router.get('/recommendations', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = Math.min(parseInt(req.query.pageSize as string) || 20, 20);
     const offset = (page - 1) * pageSize;
+    const allowedStatuses = ['New', 'Under Revision', 'In Progress', 'Done', 'Cancelled', 'Ignored'];
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status filter' });
+    }
 
     const conditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
     paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+    if (status) {
+      conditions.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex += 1;
+    }
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countResult = await pool.query(
@@ -651,7 +662,7 @@ router.get('/recommendations', async (req: Request, res: Response) => {
 
     params.push(pageSize, offset);
     const result = await pool.query(
-      `SELECT id, roblox_user_id, recommendation, source_type, created_at
+      `SELECT id, roblox_user_id, recommendation, source_type, status, created_at
        FROM recommendations
        ${whereClause}
        ORDER BY created_at DESC
@@ -665,6 +676,7 @@ router.get('/recommendations', async (req: Request, res: Response) => {
         robloxUserId: row.roblox_user_id?.toString(),
         recommendation: row.recommendation,
         sourceType: row.source_type,
+        status: row.status,
         createdAt: row.created_at,
       })),
       pagination: {
@@ -677,6 +689,41 @@ router.get('/recommendations', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error({ err }, 'Error fetching recommendations');
     res.status(500).json({ error: 'Failed to fetch recommendations' });
+  }
+});
+
+router.patch('/recommendations/:id/status', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const statusSchema = z.object({
+      status: z.enum(['New', 'Under Revision', 'In Progress', 'Done', 'Cancelled', 'Ignored']),
+    });
+    const parsed = statusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const conditions: string[] = ['id = $1'];
+    const params: unknown[] = [id];
+    let paramIndex = 2;
+    paramIndex = applyAccountScope(req, conditions, params, paramIndex, 'account_number');
+
+    const result = await pool.query(
+      `UPDATE recommendations
+       SET status = $${paramIndex}
+       WHERE ${conditions.join(' AND ')}
+       RETURNING id, status`,
+      [...params, parsed.data.status]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Recommendation not found' });
+    }
+
+    return res.json({ id: result.rows[0].id, status: result.rows[0].status });
+  } catch (err) {
+    logger.error({ err }, 'Error updating recommendation status');
+    return res.status(500).json({ error: 'Failed to update status' });
   }
 });
 

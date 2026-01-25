@@ -225,7 +225,7 @@ router.get('/recommendations.xlsx', async (req: Request, res: Response) => {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await pool.query(
-      `SELECT id, roblox_user_id, recommendation, source_type, created_at
+      `SELECT id, roblox_user_id, recommendation, source_type, status, created_at
        FROM recommendations
        ${whereClause}
        ORDER BY created_at DESC`,
@@ -240,6 +240,7 @@ router.get('/recommendations.xlsx', async (req: Request, res: Response) => {
       { header: 'Roblox User ID', key: 'roblox_user_id', width: 18 },
       { header: 'Recommendation', key: 'recommendation', width: 60 },
       { header: 'Source', key: 'source_type', width: 16 },
+      { header: 'Status', key: 'status', width: 16 },
       { header: 'Created At', key: 'created_at', width: 20 },
     ];
 
@@ -256,6 +257,7 @@ router.get('/recommendations.xlsx', async (req: Request, res: Response) => {
         roblox_user_id: row.roblox_user_id,
         recommendation: row.recommendation,
         source_type: row.source_type,
+        status: row.status,
         created_at: row.created_at,
       });
     });
