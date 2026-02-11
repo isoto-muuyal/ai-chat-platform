@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { logger } from '../../config/logger.js';
 import { env } from '../../config/env.js';
 import { pool } from '../../config/db.js';
+import { sentimentAnalyzer, SentimentLabel } from '../../src/services/sentiment-analyzer.js';
 
 const router = Router();
 
@@ -33,7 +34,6 @@ const chatRequestSchema = z.object({
 
 const inferenceSchema = z.object({
   topic: z.string().min(1).max(120).optional().nullable(),
-  sentiment: z.enum(['positive', 'neutral', 'negative']).optional().nullable(),
   is_troll: z.boolean().optional().nullable(),
 });
 
@@ -69,7 +69,6 @@ const getAccountSettings = async (accountNumber: number) => {
 
 const inferMeta = async (message: string): Promise<{
   topic: string | null;
-  sentiment: 'positive' | 'neutral' | 'negative' | null;
   is_troll: boolean;
 }> => {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
@@ -81,8 +80,7 @@ const inferMeta = async (message: string): Promise<{
           {
             text:
               'You are a classifier. Return ONLY a JSON object with keys: ' +
-              'topic (string), sentiment ("positive"|"neutral"|"negative" or null), ' +
-              'is_troll (boolean). No extra text.\n\n' +
+              'topic (string), is_troll (boolean). No extra text.\n\n' +
               'Pick EXACTLY ONE topic from: people, new projects, social problems, ' +
               'fight with the AI, debate ideas, general. If not identifiable, use "general".\n\n' +
               'Mark is_troll=true when the message includes harassment, hate speech, threats, ' +
@@ -119,12 +117,11 @@ const inferMeta = async (message: string): Promise<{
 
     return {
       topic: parsed.data.topic ?? null,
-      sentiment: parsed.data.sentiment ?? null,
       is_troll: parsed.data.is_troll ?? false,
     };
   } catch (err) {
     logger.warn({ err }, 'Gemini inference failed, using defaults');
-    return { topic: null, sentiment: null, is_troll: false };
+    return { topic: null, is_troll: false };
   }
 };
 
@@ -137,7 +134,7 @@ const persistInteraction = async (params: {
   aiMessage: string;
   country?: string;
   topic: string | null;
-  sentiment: 'positive' | 'neutral' | 'negative' | null;
+  sentiment: SentimentLabel | null;
   isTroll: boolean;
   sourceClient: string | null;
 }): Promise<void> => {
@@ -425,7 +422,8 @@ router.post('/stream', async (req: Request, res: Response) => {
       res.end();
 
       void (async () => {
-        const { topic, sentiment, is_troll } = await inferMeta(message);
+        const sentiment = sentimentAnalyzer.analyze(message);
+        const { topic, is_troll } = await inferMeta(message);
         const normalizedTopic = topic && topic.trim() ? topic.trim() : 'general';
         await persistInteraction({
           conversationId,

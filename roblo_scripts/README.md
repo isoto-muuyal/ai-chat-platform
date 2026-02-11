@@ -59,3 +59,13 @@ Payload sent to API
 Notes
 - Only the Server Script should store the API key.
 - LocalScript only opens/closes UI and sends the text to the server via RemoteEvent.
+
+Runner NPC (random roam + disappear + reward)
+- Script: NpcRunnerReward.lua (Server Script)
+- Place under the NPC model (Workspace).
+- NPC must have: Humanoid + HumanoidRootPart.
+- Optional: ProximityPrompt named CatchPrompt under HumanoidRootPart.
+- Optional: create Workspace folder "NPCLocations" with Parts as waypoints.
+- Configure:
+  - SHIRT_TEMPLATE = "rbxassetid://<your shirt template id>"
+  - Or set USE_PROMPT_PURCHASE = true and SHIRT_ASSET_ID for paid items.
