@@ -640,7 +640,8 @@ router.get('/recommendations', async (req: Request, res: Response) => {
     const allowedStatuses = ['New', 'Under Revision', 'In Progress', 'Done', 'Cancelled', 'Ignored'];
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     if (status && !allowedStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status filter' });
+      res.status(400).json({ error: 'Invalid status filter' });
+      return;
     }
 
     const conditions: string[] = [];
@@ -686,9 +687,11 @@ router.get('/recommendations', async (req: Request, res: Response) => {
         totalPages: Math.ceil(total / pageSize),
       },
     });
+    return;
   } catch (err) {
     logger.error({ err }, 'Error fetching recommendations');
     res.status(500).json({ error: 'Failed to fetch recommendations' });
+    return;
   }
 });
 
