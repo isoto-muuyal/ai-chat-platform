@@ -619,7 +619,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
       messages: messagesResult.rows.map((row) => ({
         id: row.id,
         sender: row.sender,
-        content: truncateWords(row.content),
+        content: row.content ?? '',
         createdAt: row.created_at,
         isTroll: row.is_troll,
         sourceClient: row.source_client,

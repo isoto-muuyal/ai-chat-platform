@@ -341,6 +341,7 @@ router.post('/stream', async (req: Request, res: Response) => {
       gender,
       location,
       clientTimestamp,
+      message,
       messageLength: message.length,
     },
     'chat request received'
@@ -348,15 +349,19 @@ router.post('/stream', async (req: Request, res: Response) => {
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
   const prompt = accountSettings.prompt?.trim();
-  const userText = prompt ? `${prompt}\n\nUsuario: ${message}` : message;
   const geminiBody: Record<string, unknown> = {
     contents: [
       {
         role: 'user',
-        parts: [{ text: userText }],
+        parts: [{ text: message }],
       },
     ],
   };
+  if (prompt) {
+    geminiBody.systemInstruction = {
+      parts: [{ text: prompt }],
+    };
+  }
   logger.info(
     {
       accountNumber,
