@@ -11,6 +11,7 @@ import Conversations from './pages/Conversations';
 import ConversationDetail from './pages/ConversationDetail';
 import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
+import SourceManagement from './pages/SourceManagement';
 import AdminUsers from './pages/AdminUsers';
 import Layout from './components/Layout';
 
@@ -49,6 +50,7 @@ function App() {
           <Route path="troll" element={<Troll />} />
           <Route path="users" element={<Users />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="sources" element={<SourceManagement />} />
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />

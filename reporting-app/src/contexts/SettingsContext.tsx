@@ -33,6 +33,7 @@ const translations = {
   users: { en: 'Users', es: 'Usuarios', fr: 'Utilisateurs' },
   conversations: { en: 'Conversations', es: 'Conversaciones', fr: 'Conversations' },
   recommendations: { en: 'Recommendations', es: 'Recomendaciones', fr: 'Recommandations' },
+  sourceManagement: { en: 'Sources', es: 'Fuentes', fr: 'Sources' },
   settings: { en: 'Settings', es: 'Ajustes', fr: 'Paramètres' },
   welcome: { en: 'Welcome', es: 'Bienvenido', fr: 'Bienvenue' },
   logout: { en: 'Logout', es: 'Salir', fr: 'Déconnexion' },

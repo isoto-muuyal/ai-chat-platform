@@ -1,0 +1,139 @@
+.source-management {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-header h2 {
+  margin: 0 0 6px;
+}
+
+.page-header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.source-management-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.management-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px var(--shadow);
+  padding: 24px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.card-header h3 {
+  margin: 0 0 6px;
+}
+
+.card-header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface-muted);
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.item-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.item-grid input,
+.item-grid select,
+.item-grid textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text);
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.secondary-btn,
+.danger-btn,
+.save-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-btn,
+.save-btn {
+  background: #2563eb;
+  color: white;
+}
+
+.danger-btn {
+  background: #b91c1c;
+  color: white;
+}
+
+.form-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status,
+.empty-state {
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .card-header {
+    flex-direction: column;
+  }
+
+  .span-2 {
+    grid-column: span 1;
+  }
+
+  .form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

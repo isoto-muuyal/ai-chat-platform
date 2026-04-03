@@ -26,6 +26,44 @@ CREATE TABLE IF NOT EXISTS account_settings (
   updated_at timestamptz NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS account_destinations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_number bigint NOT NULL,
+  name text NOT NULL,
+  provider text NOT NULL,
+  model text NOT NULL,
+  api_key_encrypted bytea,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW(),
+  UNIQUE (account_number, name)
+);
+
+CREATE TABLE IF NOT EXISTS account_sources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_number bigint NOT NULL,
+  name text NOT NULL,
+  source_type text NOT NULL,
+  provider text NOT NULL DEFAULT 'api',
+  destination_id uuid NOT NULL REFERENCES account_destinations(id) ON DELETE CASCADE,
+  prompt text,
+  provider_identifier text,
+  provider_secret_encrypted bytea,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW(),
+  UNIQUE (account_number, name)
+);
+
+CREATE TABLE IF NOT EXISTS channel_conversations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_number bigint NOT NULL,
+  source_name text NOT NULL,
+  external_user_id text NOT NULL,
+  conversation_id uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW(),
+  UNIQUE (account_number, source_name, external_user_id)
+);
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_resets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

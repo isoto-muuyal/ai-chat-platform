@@ -26,6 +26,32 @@ const accountSettingsSchema = z.object({
   sources: z.array(z.string().min(1).max(64)).optional(),
 });
 
+const destinationProviderSchema = z.enum(['gemini', 'openai']);
+const sourceTypeSchema = z.enum(['roblox', 'whatsapp', 'web_app']);
+const sourceProviderSchema = z.enum(['api', 'twilio_whatsapp']);
+
+const sourceManagementSchema = z.object({
+  destinations: z.array(
+    z.object({
+      name: z.string().min(1).max(64),
+      provider: destinationProviderSchema,
+      model: z.string().min(1).max(120),
+      apiKey: z.string().min(1).max(1024),
+    })
+  ),
+  sources: z.array(
+    z.object({
+      name: z.string().min(1).max(64),
+      sourceType: sourceTypeSchema,
+      provider: sourceProviderSchema,
+      destinationName: z.string().min(1).max(64),
+      prompt: z.string().max(4000).optional().nullable(),
+      providerIdentifier: z.string().max(128).optional().nullable(),
+      providerSecret: z.string().max(1024).optional().nullable(),
+    })
+  ),
+});
+
 const normalizeSources = (sources?: string[]): string[] => {
   if (!sources || sources.length === 0) {
     return ['default'];
@@ -33,6 +59,10 @@ const normalizeSources = (sources?: string[]): string[] => {
   const normalized = sources.map((s) => s.trim()).filter((s) => s.length > 0);
   const unique = Array.from(new Set(normalized));
   return unique.length > 0 ? unique : ['default'];
+};
+
+const normalizeUniqueNames = (values: string[]): string[] => {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 };
 
 const ensureCsrfToken = (req: Request): string => {
@@ -74,6 +104,109 @@ const ensureAccountSettings = async (accountNumber: number) => {
     [accountNumber, null, ['default'], apiKey]
   );
   return inserted.rows[0];
+};
+
+const getSourceManagement = async (accountNumber: number) => {
+  const settings = await ensureAccountSettings(accountNumber);
+  const destinationsResult = await pool.query(
+    `SELECT
+      name,
+      provider,
+      model,
+      COALESCE(pgp_sym_decrypt(api_key_encrypted, $2)::text, '') as api_key
+     FROM account_destinations
+     WHERE account_number = $1
+     ORDER BY created_at ASC, name ASC`,
+    [accountNumber, env.MESSAGE_ENCRYPTION_KEY]
+  );
+
+  const sourcesResult = await pool.query(
+    `SELECT
+      s.name,
+      s.source_type,
+      s.provider,
+      d.name as destination_name,
+      s.prompt,
+      s.provider_identifier,
+      COALESCE(pgp_sym_decrypt(s.provider_secret_encrypted, $2)::text, '') as provider_secret
+     FROM account_sources s
+     JOIN account_destinations d ON d.id = s.destination_id
+     WHERE s.account_number = $1
+     ORDER BY s.created_at ASC, s.name ASC`,
+    [accountNumber, env.MESSAGE_ENCRYPTION_KEY]
+  );
+
+  return {
+    apiKey: settings.api_key,
+    apiUrl: env.CHAT_API_URL,
+    apiHeader: 'x-api-key',
+    destinations: destinationsResult.rows.map((row) => ({
+      name: row.name,
+      provider: row.provider,
+      model: row.model,
+      apiKey: row.api_key,
+    })),
+    sources: sourcesResult.rows.map((row) => ({
+      name: row.name,
+      sourceType: row.source_type,
+      provider: row.provider,
+      destinationName: row.destination_name,
+      prompt: row.prompt || '',
+      providerIdentifier: row.provider_identifier || '',
+      providerSecret: row.provider_secret || '',
+    })),
+  };
+};
+
+const validateSourceManagement = (
+  parsed: z.infer<typeof sourceManagementSchema>
+): { destinations: z.infer<typeof sourceManagementSchema>['destinations']; sources: z.infer<typeof sourceManagementSchema>['sources'] } => {
+  const destinationNames = normalizeUniqueNames(parsed.destinations.map((destination) => destination.name));
+  if (destinationNames.length !== parsed.destinations.length) {
+    throw new Error('Destination names must be unique');
+  }
+
+  const sourceNames = normalizeUniqueNames(parsed.sources.map((source) => source.name));
+  if (sourceNames.length !== parsed.sources.length) {
+    throw new Error('Source names must be unique');
+  }
+
+  const destinationNameSet = new Set(destinationNames);
+  for (const source of parsed.sources) {
+    if (!destinationNameSet.has(source.destinationName.trim())) {
+      throw new Error(`Source "${source.name}" references an unknown destination`);
+    }
+    if (source.sourceType === 'whatsapp') {
+      if (source.provider !== 'twilio_whatsapp') {
+        throw new Error(`WhatsApp source "${source.name}" must use the Twilio WhatsApp provider`);
+      }
+      if (!source.providerIdentifier?.trim()) {
+        throw new Error(`WhatsApp source "${source.name}" requires a provider identifier`);
+      }
+      if (!source.providerSecret?.trim()) {
+        throw new Error(`WhatsApp source "${source.name}" requires a provider secret`);
+      }
+    } else if (source.provider !== 'api') {
+      throw new Error(`Source "${source.name}" must use the API provider`);
+    }
+  }
+
+  return {
+    destinations: parsed.destinations.map((destination) => ({
+      ...destination,
+      name: destination.name.trim(),
+      model: destination.model.trim(),
+      apiKey: destination.apiKey.trim(),
+    })),
+    sources: parsed.sources.map((source) => ({
+      ...source,
+      name: source.name.trim(),
+      destinationName: source.destinationName.trim(),
+      prompt: source.prompt?.trim() ?? '',
+      providerIdentifier: source.providerIdentifier?.trim() ?? '',
+      providerSecret: source.providerSecret?.trim() ?? '',
+    })),
+  };
 };
 
 router.post('/login', authLimiter, (req: Request, res: Response) => {
@@ -255,6 +388,127 @@ router.put('/account-settings', async (req: Request, res: Response) => {
     }
     logger.error({ err: error }, 'Error updating account settings');
     return res.status(500).json({ error: 'Failed to update account settings' });
+  }
+});
+
+router.get('/source-management', async (req: Request, res: Response) => {
+  if (!req.session?.authenticated || req.session.accountNumber === undefined) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  try {
+    const data = await getSourceManagement(req.session.accountNumber);
+    return res.json(data);
+  } catch (error) {
+    logger.error({ err: error }, 'Error loading source management');
+    return res.status(500).json({ error: 'Failed to load source management' });
+  }
+});
+
+router.put('/source-management', async (req: Request, res: Response) => {
+  if (!req.session?.authenticated || req.session.accountNumber === undefined) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const accountNumber = req.session.accountNumber;
+  let parsed: z.infer<typeof sourceManagementSchema>;
+
+  try {
+    parsed = sourceManagementSchema.parse(req.body);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    throw error;
+  }
+
+  try {
+    const validated = validateSourceManagement(parsed);
+    const settings = await ensureAccountSettings(accountNumber);
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      await client.query('DELETE FROM account_sources WHERE account_number = $1', [accountNumber]);
+      await client.query('DELETE FROM account_destinations WHERE account_number = $1', [accountNumber]);
+
+      const destinationIdByName = new Map<string, string>();
+      for (const destination of validated.destinations) {
+        const insertResult = await client.query(
+          `INSERT INTO account_destinations (
+            account_number,
+            name,
+            provider,
+            model,
+            api_key_encrypted,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), NOW(), NOW())
+          RETURNING id`,
+          [
+            accountNumber,
+            destination.name,
+            destination.provider,
+            destination.model,
+            destination.apiKey,
+            env.MESSAGE_ENCRYPTION_KEY,
+          ]
+        );
+        destinationIdByName.set(destination.name, insertResult.rows[0].id);
+      }
+
+      for (const source of validated.sources) {
+        const destinationId = destinationIdByName.get(source.destinationName);
+        if (!destinationId) {
+          throw new Error(`Missing destination for source "${source.name}"`);
+        }
+
+        await client.query(
+          `INSERT INTO account_sources (
+            account_number,
+            name,
+            source_type,
+            provider,
+            destination_id,
+            prompt,
+            provider_identifier,
+            provider_secret_encrypted,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, pgp_sym_encrypt($8, $9), NOW(), NOW())`,
+          [
+            accountNumber,
+            source.name,
+            source.sourceType,
+            source.provider,
+            destinationId,
+            source.prompt || null,
+            source.providerIdentifier || null,
+            source.providerSecret || null,
+            env.MESSAGE_ENCRYPTION_KEY,
+          ]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    const data = await getSourceManagement(accountNumber);
+    return res.json({
+      ...data,
+      apiKey: settings.api_key,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error updating source management');
+    return res.status(error instanceof Error ? 400 : 500).json({
+      error: error instanceof Error ? error.message : 'Failed to update source management',
+    });
   }
 });
 

@@ -14,11 +14,6 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [status, setStatus] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [sourcesText, setSourcesText] = useState('');
-  const [apiUrl, setApiUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [apiHeader, setApiHeader] = useState('x-api-key');
 
   useEffect(() => {
     if (user) {
@@ -29,24 +24,6 @@ export default function Settings() {
       setTheme(user.theme || settings.theme);
     }
   }, [user, settings.language, settings.theme]);
-
-  useEffect(() => {
-    if (!user) return;
-    void (async () => {
-      try {
-        const response = await fetch('/api/auth/account-settings', { credentials: 'include' });
-        if (!response.ok) return;
-        const data = await response.json();
-        setPrompt(data.prompt || '');
-        setSourcesText((data.sources || []).join(', '));
-        setApiUrl(data.apiUrl || '');
-        setApiKey(data.apiKey || '');
-        setApiHeader(data.apiHeader || 'x-api-key');
-      } catch (error) {
-        console.error('Failed to load account settings:', error);
-      }
-    })();
-  }, [user]);
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -90,33 +67,6 @@ export default function Settings() {
     setCurrentPassword('');
     setNewPassword('');
 
-    const sources = sourcesText
-      .split(',')
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-
-    const accountResponse = await fetch('/api/auth/account-settings', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        prompt,
-        sources,
-      }),
-    });
-
-    if (accountResponse.ok) {
-      const accountData = await accountResponse.json();
-      setPrompt(accountData.prompt || '');
-      setSourcesText((accountData.sources || []).join(', '));
-      setApiUrl(accountData.apiUrl || apiUrl);
-      setApiKey(accountData.apiKey || apiKey);
-      setApiHeader(accountData.apiHeader || apiHeader);
-    }
-
     setStatus('Saved');
     await refreshMe();
   };
@@ -153,24 +103,6 @@ export default function Settings() {
           </select>
         </label>
         <label>
-          {t('prompt')}
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={4}
-            placeholder="Define the system prompt used for your bot"
-          />
-        </label>
-        <label>
-          {t('sources')}
-          <input
-            value={sourcesText}
-            onChange={(e) => setSourcesText(e.target.value)}
-            placeholder="default, roblox, web"
-          />
-          <span className="help">{t('sourcesHelp')}</span>
-        </label>
-        <label>
           {t('currentPassword')}
           <input
             type="password"
@@ -192,23 +124,6 @@ export default function Settings() {
         {status && <div className="status">{status === 'Saved' ? t('saved') : status}</div>}
       </form>
 
-      <div className="settings-section">
-        <h3>{t('apiAccess')}</h3>
-        <div className="settings-form">
-          <label>
-            {t('apiUrl')}
-            <input readOnly value={apiUrl} />
-          </label>
-          <label>
-            {t('apiHeader')}
-            <input readOnly value={apiHeader} />
-          </label>
-          <label>
-            {t('apiKey')}
-            <input readOnly value={apiKey} />
-          </label>
-        </div>
-      </div>
     </div>
   );
 }
