@@ -26,8 +26,8 @@ const accountSettingsSchema = z.object({
   sources: z.array(z.string().min(1).max(64)).optional(),
 });
 
-const destinationProviderSchema = z.enum(['gemini', 'openai']);
-const sourceTypeSchema = z.enum(['roblox', 'whatsapp', 'web_app']);
+const destinationProviderSchema = z.enum(['gemini', 'openai', 'ollama', 'huggingface']);
+const sourceTypeSchema = z.enum(['roblox', 'whatsapp', 'web_app', 'other']);
 const sourceProviderSchema = z.enum(['api', 'twilio_whatsapp']);
 
 const sourceManagementSchema = z.object({

@@ -1,8 +1,8 @@
 import { pool } from '../../config/db.js';
 import { env } from '../../config/env.js';
 
-export type DestinationProvider = 'gemini' | 'openai';
-export type SourceType = 'roblox' | 'whatsapp' | 'web_app';
+export type DestinationProvider = 'gemini' | 'openai' | 'ollama' | 'huggingface';
+export type SourceType = 'roblox' | 'whatsapp' | 'web_app' | 'other';
 export type SourceProvider = 'api' | 'twilio_whatsapp';
 
 export type ResolvedSourceConfig = {

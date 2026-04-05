@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './SourceManagement.css';
 
-type DestinationProvider = 'gemini' | 'openai';
-type SourceType = 'roblox' | 'whatsapp' | 'web_app';
+type DestinationProvider = 'gemini' | 'openai' | 'ollama' | 'huggingface';
+type SourceType = 'roblox' | 'whatsapp' | 'web_app' | 'other';
 type SourceProvider = 'api' | 'twilio_whatsapp';
 
 type Destination = {
@@ -189,6 +189,8 @@ export default function SourceManagement() {
                     >
                       <option value="gemini">Gemini</option>
                       <option value="openai">OpenAI</option>
+                      <option value="ollama">Ollama</option>
+                      <option value="huggingface">Hugging Face</option>
                     </select>
                   </label>
                   <label>
@@ -196,7 +198,15 @@ export default function SourceManagement() {
                     <input
                       value={destination.model}
                       onChange={(event) => updateDestination(index, 'model', event.target.value)}
-                      placeholder={destination.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-5-mini'}
+                      placeholder={
+                        destination.provider === 'gemini'
+                          ? 'gemini-2.5-flash'
+                          : destination.provider === 'openai'
+                            ? 'gpt-5-mini'
+                            : destination.provider === 'ollama'
+                              ? 'llama3.1'
+                              : 'meta-llama/Llama-3.1-8B-Instruct'
+                      }
                     />
                   </label>
                   <label className="span-2">
@@ -257,6 +267,7 @@ export default function SourceManagement() {
                       <option value="roblox">Roblox</option>
                       <option value="whatsapp">WhatsApp</option>
                       <option value="web_app">Web app</option>
+                      <option value="other">Other</option>
                     </select>
                   </label>
                   <label>
