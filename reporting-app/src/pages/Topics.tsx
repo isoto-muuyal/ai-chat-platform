@@ -19,6 +19,10 @@ interface Topic {
   topic: string;
   count: number;
   share: number;
+  positiveCount: number;
+  neutralCount: number;
+  negativeCount: number;
+  dominantSentiment: 'positive' | 'neutral' | 'negative';
 }
 
 interface TimeseriesData {
@@ -128,6 +132,10 @@ export default function Topics() {
             <thead>
               <tr>
                 <th>{t('topic')}</th>
+                <th>{t('dominantSentiment')}</th>
+                <th>{t('positive')}</th>
+                <th>{t('neutral')}</th>
+                <th>{t('negative')}</th>
                 <th>{t('count')}</th>
                 <th>{t('share')}</th>
               </tr>
@@ -136,6 +144,10 @@ export default function Topics() {
               {topics.map((topic) => (
                 <tr key={topic.topic}>
                   <td>{topic.topic}</td>
+                  <td>{topic.dominantSentiment}</td>
+                  <td>{topic.positiveCount.toLocaleString()}</td>
+                  <td>{topic.neutralCount.toLocaleString()}</td>
+                  <td>{topic.negativeCount.toLocaleString()}</td>
                   <td>{topic.count.toLocaleString()}</td>
                   <td>{topic.share.toFixed(2)}%</td>
                 </tr>

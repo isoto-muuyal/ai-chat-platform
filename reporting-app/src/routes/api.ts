@@ -186,6 +186,20 @@ router.get('/topics', async (req: Request, res: Response) => {
       `SELECT 
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
+        COUNT(*) FILTER (WHERE sentiment = 'positive')::int as positive_count,
+        COUNT(*) FILTER (WHERE sentiment = 'neutral')::int as neutral_count,
+        COUNT(*) FILTER (WHERE sentiment = 'negative')::int as negative_count,
+        CASE
+          WHEN COUNT(*) FILTER (WHERE sentiment = 'positive') >= GREATEST(
+            COUNT(*) FILTER (WHERE sentiment = 'neutral'),
+            COUNT(*) FILTER (WHERE sentiment = 'negative')
+          ) THEN 'positive'
+          WHEN COUNT(*) FILTER (WHERE sentiment = 'negative') >= GREATEST(
+            COUNT(*) FILTER (WHERE sentiment = 'positive'),
+            COUNT(*) FILTER (WHERE sentiment = 'neutral')
+          ) THEN 'negative'
+          ELSE 'neutral'
+        END as dominant_sentiment,
         ROUND(
           COUNT(*)::numeric / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::numeric, 0) * 100,
           2
@@ -201,6 +215,10 @@ router.get('/topics', async (req: Request, res: Response) => {
       result.rows.map((row) => ({
         topic: row.topic,
         count: row.count,
+        positiveCount: row.positive_count,
+        neutralCount: row.neutral_count,
+        negativeCount: row.negative_count,
+        dominantSentiment: row.dominant_sentiment,
         share: parseFloat(row.share || '0'),
       }))
     );

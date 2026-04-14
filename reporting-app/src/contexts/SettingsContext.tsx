@@ -97,6 +97,10 @@ const translations = {
     fr: 'Comptes et part par sujet',
   },
   topic: { en: 'Topic', es: 'Tema', fr: 'Sujet' },
+  dominantSentiment: { en: 'Dominant Sentiment', es: 'Sentimiento dominante', fr: 'Sentiment dominant' },
+  positive: { en: 'Positive', es: 'Positivo', fr: 'Positif' },
+  neutral: { en: 'Neutral', es: 'Neutral', fr: 'Neutre' },
+  negative: { en: 'Negative', es: 'Negativo', fr: 'Négatif' },
   count: { en: 'Count', es: 'Conteo', fr: 'Nombre' },
   share: { en: 'Share (%)', es: 'Porcentaje (%)', fr: 'Part (%)' },
   topTopicsTimeseries: {

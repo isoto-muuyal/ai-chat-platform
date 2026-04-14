@@ -294,6 +294,20 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
       `SELECT 
         COALESCE(topic, 'general') as topic,
         COUNT(*)::int as count,
+        COUNT(*) FILTER (WHERE sentiment = 'positive')::int as positive_count,
+        COUNT(*) FILTER (WHERE sentiment = 'neutral')::int as neutral_count,
+        COUNT(*) FILTER (WHERE sentiment = 'negative')::int as negative_count,
+        CASE
+          WHEN COUNT(*) FILTER (WHERE sentiment = 'positive') >= GREATEST(
+            COUNT(*) FILTER (WHERE sentiment = 'neutral'),
+            COUNT(*) FILTER (WHERE sentiment = 'negative')
+          ) THEN 'positive'
+          WHEN COUNT(*) FILTER (WHERE sentiment = 'negative') >= GREATEST(
+            COUNT(*) FILTER (WHERE sentiment = 'positive'),
+            COUNT(*) FILTER (WHERE sentiment = 'neutral')
+          ) THEN 'negative'
+          ELSE 'neutral'
+        END as dominant_sentiment,
         ROUND(
           COUNT(*)::float / NULLIF((SELECT COUNT(*) FROM conversations WHERE ${whereClause})::float, 0) * 100,
           2
@@ -310,6 +324,10 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
 
     worksheet.columns = [
       { header: 'Topic', key: 'topic', width: 30 },
+      { header: 'Dominant Sentiment', key: 'dominant_sentiment', width: 20 },
+      { header: 'Positive', key: 'positive_count', width: 12 },
+      { header: 'Neutral', key: 'neutral_count', width: 12 },
+      { header: 'Negative', key: 'negative_count', width: 12 },
       { header: 'Count', key: 'count', width: 15 },
       { header: 'Share (%)', key: 'share', width: 15 },
     ];
@@ -324,6 +342,10 @@ router.get('/topics.xlsx', async (req: Request, res: Response) => {
     result.rows.forEach((row) => {
       worksheet.addRow({
         topic: row.topic,
+        dominant_sentiment: row.dominant_sentiment,
+        positive_count: row.positive_count,
+        neutral_count: row.neutral_count,
+        negative_count: row.negative_count,
         count: row.count,
         share: parseFloat(row.share || '0'),
       });

@@ -39,60 +39,57 @@ const inferenceSchema = z.object({
   is_troll: z.boolean().optional().nullable(),
 });
 
-const inferMeta = async (message: string): Promise<{
+const normalizeTopicLabel = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .slice(0, 2)
+    .join(' ')
+    .trim();
+
+  return normalized || null;
+};
+
+const inferMeta = async (params: {
+  message: string;
+  provider: Parameters<typeof generateText>[0]['provider'];
+  model: string;
+  apiKey: string;
+}): Promise<{
   topic: string | null;
   is_troll: boolean;
 }> => {
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text:
-              'You are a classifier. Return ONLY a JSON object with keys: ' +
-              'topic (string), is_troll (boolean). No extra text.\n\n' +
-              'Pick EXACTLY ONE topic from: people, new projects, social problems, ' +
-              'fight with the AI, debate ideas, general. If not identifiable, use "general".\n\n' +
-              'Mark is_troll=true when the message includes harassment, hate speech, threats, ' +
-              'targeted insults, sexual harassment, doxxing, or repeated spam/abuse.\n\n' +
-              `Message: ${message}`,
-          },
-        ],
-      },
-    ],
-  };
-
   try {
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+    const text = await generateText({
+      provider: params.provider,
+      model: params.model,
+      apiKey: params.apiKey,
+      prompt:
+        'You analyze one chat message at a time. Return ONLY valid JSON with keys ' +
+        '"topic" and "is_troll". ' +
+        'The topic must be the main subject of the message in one or two words only. ' +
+        'Use concise lowercase wording such as "school drama", "new game", "family", "money", "bug report". ' +
+        'If the topic is unclear, use "general". ' +
+        'Set is_troll=true only for harassment, hate speech, threats, sexual harassment, doxxing, or repeated abuse/spam. ' +
+        'Do not include explanations, markdown, or extra keys.',
+      message: params.message,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini inference error ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      throw new Error('Gemini inference response missing text');
-    }
 
     const parsed = inferenceSchema.safeParse(JSON.parse(text));
     if (!parsed.success) {
-      throw new Error('Gemini inference response invalid');
+      throw new Error('LLM inference response invalid');
     }
 
     return {
-      topic: parsed.data.topic ?? null,
+      topic: normalizeTopicLabel(parsed.data.topic) ?? 'general',
       is_troll: parsed.data.is_troll ?? false,
     };
   } catch (err) {
-    logger.warn({ err }, 'Gemini inference failed, using defaults');
+    logger.warn({ err }, 'topic inference failed, using defaults');
     return { topic: null, is_troll: false };
   }
 };
@@ -214,7 +211,12 @@ router.post('/stream', async (req: Request, res: Response) => {
 
       void (async () => {
         const sentiment = sentimentAnalyzer.analyze(message);
-        const { topic, is_troll } = await inferMeta(message);
+        const { topic, is_troll } = await inferMeta({
+          message,
+          provider: resolvedSource.destination.provider,
+          model: resolvedSource.destination.model,
+          apiKey: resolvedSource.destination.apiKey,
+        });
         const normalizedTopic = topic && topic.trim() ? topic.trim() : 'general';
         await persistInteraction({
           conversationId,
