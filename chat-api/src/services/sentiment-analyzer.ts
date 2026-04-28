@@ -1,21 +1,13 @@
+import { SentimentIntensityAnalyzer } from 'vader-sentiment';
+
 type SentimentLabel = 'positive' | 'neutral' | 'negative';
 
 type LexiconOverrides = Record<string, number>;
-
-type VaderModule = {
-  SentimentIntensityAnalyzer: {
-    polarity_scores: (
-      text: string,
-      options?: { lexicon?: LexiconOverrides }
-    ) => { compound?: number };
-  };
-};
 
 export class SentimentAnalyzer {
   private readonly positiveThreshold: number;
   private readonly negativeThreshold: number;
   private readonly lexiconOverrides: LexiconOverrides;
-  private readonly vader: VaderModule;
 
   constructor(config?: {
     positiveThreshold?: number;
@@ -25,7 +17,6 @@ export class SentimentAnalyzer {
     this.positiveThreshold = config?.positiveThreshold ?? 0.05;
     this.negativeThreshold = config?.negativeThreshold ?? -0.05;
     this.lexiconOverrides = config?.lexiconOverrides ?? {};
-    this.vader = require('vader-sentiment') as VaderModule;
   }
 
   analyze(message: string): SentimentLabel | null {
@@ -34,10 +25,8 @@ export class SentimentAnalyzer {
 
     const hasOverrides = Object.keys(this.lexiconOverrides).length > 0;
     const scores = hasOverrides
-      ? this.vader.SentimentIntensityAnalyzer.polarity_scores(text, {
-          lexicon: this.lexiconOverrides,
-        })
-      : this.vader.SentimentIntensityAnalyzer.polarity_scores(text);
+      ? SentimentIntensityAnalyzer.polarity_scores(text, { lexicon: this.lexiconOverrides })
+      : SentimentIntensityAnalyzer.polarity_scores(text);
 
     const compound = typeof scores.compound === 'number' ? scores.compound : 0;
 
