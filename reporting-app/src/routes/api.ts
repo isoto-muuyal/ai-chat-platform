@@ -15,6 +15,10 @@ const truncateWords = (text: string | null, maxWords = 5): string => {
   return `${words.slice(0, maxWords).join(' ')}...`;
 };
 
+const getMessageBoardOwner = (req: Request): string => {
+  return req.session.fullName || req.session.email || req.session.userId || '';
+};
+
 // All API routes require authentication
 router.use(requireAuth);
 
@@ -745,6 +749,146 @@ router.patch('/recommendations/:id/status', async (req: Request, res: Response) 
   } catch (err) {
     logger.error({ err }, 'Error updating recommendation status');
     return res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// GET /api/message-boards?page=1&pageSize=10
+export async function getMessages(req: Request, res: Response) {
+  try {
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize as string) || 10, 1), 10);
+    const offset = (page - 1) * pageSize;
+    const ownerName = getMessageBoardOwner(req);
+
+    const countResult = await pool.query(
+      'SELECT COUNT(*)::int as total FROM message_boards WHERE owner_name = $1',
+      [ownerName]
+    );
+    const total = countResult.rows[0]?.total || 0;
+
+    const result = await pool.query(
+      `SELECT id, message
+       FROM message_boards
+       WHERE owner_name = $1
+       ORDER BY id ASC
+       LIMIT $2 OFFSET $3`,
+      [ownerName, pageSize, offset]
+    );
+
+    return res.json({
+      messages: result.rows.map((row) => ({
+        id: row.id,
+        message: row.message,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching message boards');
+    return res.status(500).json({ error: 'Failed to fetch message boards' });
+  }
+}
+
+// GET /api/message-boards/:id
+export async function getMessage(req: Request, res: Response) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'Invalid message board id' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, message
+       FROM message_boards
+       WHERE id = $1 AND owner_name = $2`,
+      [id, getMessageBoardOwner(req)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Message board not found' });
+    }
+
+    return res.json({
+      id: result.rows[0].id,
+      message: result.rows[0].message,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching message board');
+    return res.status(500).json({ error: 'Failed to fetch message board' });
+  }
+}
+
+const messageBoardSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        id: z.number().int().positive().optional(),
+        message: z.string().max(500),
+      })
+    )
+    .max(10),
+});
+
+router.get('/message-boards', getMessages);
+router.get('/message-boards/:id', getMessage);
+
+router.put('/message-boards', async (req: Request, res: Response) => {
+  const parsed = messageBoardSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid message board payload' });
+  }
+
+  const ownerName = getMessageBoardOwner(req);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const savedMessages = [];
+    for (const messageBoard of parsed.data.messages) {
+      if (messageBoard.id) {
+        const result = await client.query(
+          `UPDATE message_boards
+           SET message = $1
+           WHERE id = $2 AND owner_name = $3
+           RETURNING id, message`,
+          [messageBoard.message, messageBoard.id, ownerName]
+        );
+
+        if (result.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Message board ${messageBoard.id} not found` });
+        }
+
+        savedMessages.push(result.rows[0]);
+      } else {
+        const result = await client.query(
+          `INSERT INTO message_boards (message, owner_name)
+           VALUES ($1, $2)
+           RETURNING id, message`,
+          [messageBoard.message, ownerName]
+        );
+        savedMessages.push(result.rows[0]);
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.json({
+      messages: savedMessages.map((row) => ({
+        id: row.id,
+        message: row.message,
+      })),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    logger.error({ err }, 'Error saving message boards');
+    return res.status(500).json({ error: 'Failed to save message boards' });
+  } finally {
+    client.release();
   }
 });
 

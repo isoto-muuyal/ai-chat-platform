@@ -13,6 +13,7 @@ import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
 import SourceManagement from './pages/SourceManagement';
 import AdminUsers from './pages/AdminUsers';
+import MessageBoards from './pages/MessageBoards';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,7 @@ function App() {
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />
           <Route path="recommendations" element={<Recommendations />} />
+          <Route path="message-boards" element={<MessageBoards />} />
         </Route>
       </Routes>
     </AuthProvider>
