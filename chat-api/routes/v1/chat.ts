@@ -6,6 +6,7 @@ import { env } from '../../config/env.js';
 import { pool } from '../../config/db.js';
 import { promptSanitizer } from '../../src/services/prompt-sanitizer.js';
 import { TOPIC_PROMPT_FRAGMENT, normalizeTopic } from '../../src/services/topic-classifier.js';
+import { executeInferGeminiCall, executeMainGeminiCall } from '../../src/services/resilience.js';
 
 const router = Router();
 
@@ -96,33 +97,37 @@ const inferMeta = async (message: string): Promise<{
   };
 
   try {
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+    const result = await executeInferGeminiCall(async () => {
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini inference error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error('Gemini inference response missing text');
+      }
+
+      const parsed = inferenceSchema.safeParse(JSON.parse(text));
+      if (!parsed.success) {
+        throw new Error('Gemini inference response invalid');
+      }
+
+      return {
+        topic: parsed.data.topic ?? null,
+        sentiment: parsed.data.sentiment ?? null,
+        is_troll: parsed.data.is_troll ?? false,
+      };
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini inference error ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      throw new Error('Gemini inference response missing text');
-    }
-
-    const parsed = inferenceSchema.safeParse(JSON.parse(text));
-    if (!parsed.success) {
-      throw new Error('Gemini inference response invalid');
-    }
-
-    return {
-      topic: parsed.data.topic ?? null,
-      sentiment: parsed.data.sentiment ?? null,
-      is_troll: parsed.data.is_troll ?? false,
-    };
+    return result;
   } catch (err) {
     logger.warn({ err }, 'Gemini inference failed, using defaults');
     return { topic: null, sentiment: null, is_troll: false };
@@ -412,7 +417,7 @@ router.post('/stream', async (req: Request, res: Response) => {
     return text as string;
   };
 
-  geminiRequest()
+  executeMainGeminiCall(geminiRequest)
     .then((text) => {
       // Set SSE headers
       res.setHeader('Content-Type', 'text/event-stream');

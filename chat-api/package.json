@@ -20,6 +20,7 @@
   "type": "commonjs",
   "dependencies": {
     "@types/pg": "^8.16.0",
+    "cockatiel": "^3.2.1",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
