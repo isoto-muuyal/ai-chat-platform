@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS message_boards (
   owner_name text NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_message_boards_owner_id ON message_boards(owner_name, id);
+
 -- Optional: backfill account_number for existing rows (replace with your default account number)
 -- UPDATE conversations SET account_number = 100001 WHERE account_number IS NULL;
 -- UPDATE messages SET account_number = 100001 WHERE account_number IS NULL;
