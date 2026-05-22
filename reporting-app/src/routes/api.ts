@@ -836,6 +836,31 @@ const messageBoardSchema = z.object({
 router.get('/message-boards', getMessages);
 router.get('/message-boards/:id', getMessage);
 
+router.delete('/message-boards/:id', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'Invalid message board id' });
+    }
+
+    const result = await pool.query(
+      `DELETE FROM message_boards
+       WHERE id = $1 AND owner_name = $2
+       RETURNING id`,
+      [id, getMessageBoardOwner(req)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Message board not found' });
+    }
+
+    return res.json({ id: result.rows[0].id });
+  } catch (err) {
+    logger.error({ err }, 'Error deleting message board');
+    return res.status(500).json({ error: 'Failed to delete message board' });
+  }
+});
+
 router.put('/message-boards', async (req: Request, res: Response) => {
   const parsed = messageBoardSchema.safeParse(req.body);
   if (!parsed.success) {

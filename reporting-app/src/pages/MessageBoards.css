@@ -40,6 +40,13 @@
   box-shadow: 0 2px 8px var(--shadow);
 }
 
+.message-board-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
 .message-board-id {
   color: var(--text-muted);
   font-size: 13px;
@@ -78,7 +85,8 @@
 }
 
 .save-btn,
-.secondary-btn {
+.secondary-btn,
+.delete-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
@@ -97,6 +105,11 @@
   color: var(--text);
 }
 
+.delete-btn {
+  background: var(--danger);
+  color: white;
+}
+
 .save-btn:hover:not(:disabled) {
   background: #45a049;
 }
@@ -105,8 +118,13 @@
   background: var(--divider-strong);
 }
 
+.delete-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
 .save-btn:disabled,
-.secondary-btn:disabled {
+.secondary-btn:disabled,
+.delete-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

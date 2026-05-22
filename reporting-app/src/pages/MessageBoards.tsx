@@ -19,6 +19,7 @@ export default function MessageBoards() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
   const draftPageRef = useRef<number | null>(null);
@@ -112,6 +113,46 @@ export default function MessageBoards() {
     }
   }
 
+  async function handleDelete(item: MessageBoardRow, index: number) {
+    setStatus('');
+
+    if (!item.id) {
+      setItems((current) => current.filter((_currentItem, itemIndex) => itemIndex !== index));
+      setDirty(true);
+      return;
+    }
+
+    setDeletingId(item.id);
+
+    try {
+      const response = await fetch(`/api/message-boards/${item.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete message board');
+      }
+
+      setStatus(t('deleted'));
+      const remainingOnPage = items.length - 1;
+      if (remainingOnPage === 0 && page > 1) {
+        setPage(page - 1);
+      } else {
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Error deleting message board:', error);
+      setStatus(t('messageBoardsDeleteError'));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (loading) {
     return <div className="loading">{t('loadingMessageBoards')}</div>;
   }
@@ -143,7 +184,17 @@ export default function MessageBoards() {
         {items.length === 0 && <div className="empty">{t('noMessageBoards')}</div>}
         {items.map((item, index) => (
           <div className="message-board-item" key={item.id ?? `new-${index}`}>
-            <div className="message-board-id">{item.id ? `#${item.id}` : t('newMessageBoard')}</div>
+            <div className="message-board-meta">
+              <div className="message-board-id">{item.id ? `#${item.id}` : t('newMessageBoard')}</div>
+              <button
+                type="button"
+                className="delete-btn"
+                onClick={() => handleDelete(item, index)}
+                disabled={deletingId === item.id}
+              >
+                {deletingId === item.id ? t('deleting') : t('delete')}
+              </button>
+            </div>
             <div className="message-board-editor">
               <textarea
                 value={item.message}

@@ -37,6 +37,9 @@ const translations = {
   addMessageBoard: { en: 'Add message board', es: 'Agregar tablero', fr: 'Ajouter un tableau' },
   saveChanges: { en: 'Save changes', es: 'Guardar cambios', fr: 'Enregistrer les modifications' },
   saving: { en: 'Saving...', es: 'Guardando...', fr: 'Enregistrement...' },
+  delete: { en: 'Delete', es: 'Eliminar', fr: 'Supprimer' },
+  deleting: { en: 'Deleting...', es: 'Eliminando...', fr: 'Suppression...' },
+  deleted: { en: 'Deleted', es: 'Eliminado', fr: 'Supprime' },
   loadingMessageBoards: {
     en: 'Loading message boards...',
     es: 'Cargando tableros de mensajes...',
@@ -57,6 +60,11 @@ const translations = {
     en: 'Failed to save message boards',
     es: 'No se pudieron guardar los tableros',
     fr: "Impossible d'enregistrer les tableaux",
+  },
+  messageBoardsDeleteError: {
+    en: 'Failed to delete message board',
+    es: 'No se pudo eliminar el tablero',
+    fr: 'Impossible de supprimer le tableau',
   },
   sourceManagement: { en: 'Sources', es: 'Fuentes', fr: 'Sources' },
   settings: { en: 'Settings', es: 'Ajustes', fr: 'Paramètres' },
