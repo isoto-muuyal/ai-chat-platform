@@ -1,0 +1,58 @@
+local player = game.Players.LocalPlayer
+
+local frame = script.Parent:WaitForChild("Frame")
+local goldenDucksCounter = frame:WaitForChild("GansosDoradosCounter")
+local pejecitosCounter = frame:WaitForChild("PejecitosCounter")
+
+local TOTAL_GOLDEN_DUCKS = 2
+local TOTAL_PEJECITOS = 3
+
+local function updateUI()
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats then
+		return
+	end
+
+	local pejes = leaderstats:FindFirstChild("PejecitosFound")
+	local ducks = leaderstats:FindFirstChild("GoldenDucksFound")
+
+	if pejes then
+		pejecitosCounter.Text = tostring(pejes.Value) .. "/" .. tostring(TOTAL_PEJECITOS)
+	end
+
+	if ducks then
+		goldenDucksCounter.Text = tostring(ducks.Value) .. "/" .. tostring(TOTAL_GOLDEN_DUCKS)
+	end
+end
+
+local function connectStats()
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats then
+		return
+	end
+
+	for _, stat in ipairs(leaderstats:GetChildren()) do
+		if stat:IsA("IntValue") then
+			stat.Changed:Connect(updateUI)
+		end
+	end
+
+	leaderstats.ChildAdded:Connect(function(stat)
+		if stat:IsA("IntValue") then
+			stat.Changed:Connect(updateUI)
+			updateUI()
+		end
+	end)
+end
+
+player.ChildAdded:Connect(function(child)
+	if child.Name == "leaderstats" then
+		connectStats()
+		updateUI()
+	end
+end)
+
+task.wait(1)
+connectStats()
+
+updateUI()
