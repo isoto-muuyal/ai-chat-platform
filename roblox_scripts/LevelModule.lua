@@ -170,8 +170,7 @@ for _, statueModel in ipairs(statuesFolder:GetChildren()) do
 			trigger.Size = Vector3.new(6, 6, 6)
 
 			-- Make it visible for debugging
-			trigger.Transparency = 0.5
-			trigger.Color = Color3.fromRGB(255, 0, 0)
+			trigger.Transparency = 1
 
 			-- Physics settings
 			trigger.Anchored = true
