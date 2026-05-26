@@ -83,7 +83,7 @@ const ensureAccountSettings = async (accountNumber: number) => {
   if (existing.rows.length > 0) {
     const row = existing.rows[0];
     if (!row.api_key) {
-      const apiKey = crypto.randomBytes(24).toString('base64url');
+      const apiKey = 'mvl_' + crypto.randomBytes(32).toString('base64url');
       const updated = await pool.query(
         `UPDATE account_settings
          SET api_key = $1, updated_at = NOW()
@@ -96,7 +96,7 @@ const ensureAccountSettings = async (accountNumber: number) => {
     return row;
   }
 
-  const apiKey = crypto.randomBytes(24).toString('base64url');
+  const apiKey = 'mvl_' + crypto.randomBytes(32).toString('base64url');
   const inserted = await pool.query(
     `INSERT INTO account_settings (account_number, prompt, sources, api_key, created_at, updated_at)
      VALUES ($1, $2, $3, $4, NOW(), NOW())
@@ -371,7 +371,7 @@ router.put('/account-settings', async (req: Request, res: Response) => {
          api_key = COALESCE(account_settings.api_key, $4),
          updated_at = NOW()
        RETURNING account_number, prompt, sources, api_key`,
-      [accountNumber, prompt, sources, crypto.randomBytes(24).toString('base64url')]
+      [accountNumber, prompt, sources, 'mvl_' + crypto.randomBytes(32).toString('base64url')]
     );
 
     const settings = result.rows[0];
@@ -509,6 +509,27 @@ router.put('/source-management', async (req: Request, res: Response) => {
     return res.status(error instanceof Error ? 400 : 500).json({
       error: error instanceof Error ? error.message : 'Failed to update source management',
     });
+  }
+});
+
+router.post('/regenerate-api-key', async (req: Request, res: Response) => {
+  if (!req.session?.authenticated || req.session.accountNumber === undefined) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const newKey = 'mvl_' + crypto.randomBytes(32).toString('base64url');
+
+  try {
+    await pool.query(
+      `UPDATE account_settings
+       SET api_key = $1, updated_at = NOW()
+       WHERE account_number = $2`,
+      [newKey, req.session.accountNumber]
+    );
+    return res.json({ apiKey: newKey });
+  } catch (err) {
+    logger.error({ err }, 'Failed to regenerate API key');
+    return res.status(500).json({ error: 'Failed to regenerate API key' });
   }
 });
 

@@ -44,6 +44,7 @@ export default function SourceManagement() {
   const { user, csrfToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [status, setStatus] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [apiHeader, setApiHeader] = useState('x-api-key');
@@ -68,7 +69,11 @@ export default function SourceManagement() {
       setApiUrl(data.apiUrl || '');
       setApiHeader(data.apiHeader || 'x-api-key');
       setApiKey(data.apiKey || '');
-      setDestinations((data.destinations || []).length > 0 ? data.destinations : []);
+      setDestinations(
+        (data.destinations || []).length > 0
+          ? data.destinations
+          : [{ name: 'default-gemini', provider: 'gemini' as DestinationProvider, model: 'gemini-2.5-flash', apiKey: '' }]
+      );
       setSources((data.sources || []).length > 0 ? data.sources : []);
     } catch (error) {
       console.error(error);
@@ -102,6 +107,28 @@ export default function SourceManagement() {
         return { ...source, [field]: value };
       })
     );
+  }
+
+  async function handleRegenerateKey() {
+    setRegenerating(true);
+    setStatus('');
+    try {
+      const response = await fetch('/api/auth/regenerate-api-key', {
+        method: 'POST',
+        headers: {
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to regenerate key');
+      setApiKey(data.apiKey);
+      setStatus('API key regenerated');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to regenerate key');
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   async function handleSave(event: React.FormEvent) {
@@ -359,7 +386,17 @@ export default function SourceManagement() {
             </label>
             <label className="span-2">
               API key
-              <input readOnly value={apiKey} />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input readOnly value={apiKey} style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={handleRegenerateKey}
+                  disabled={regenerating}
+                >
+                  {regenerating ? 'Regenerating...' : 'Regenerate'}
+                </button>
+              </div>
             </label>
           </div>
         </section>
