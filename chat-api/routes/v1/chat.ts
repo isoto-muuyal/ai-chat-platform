@@ -47,25 +47,33 @@ const accountSettingsSchema = z.object({
 });
 
 const getAccountSettings = async (accountNumber: number) => {
-  const result = await pool.query(
-    `SELECT prompt, sources, api_key
-     FROM account_settings
-     WHERE account_number = $1`,
-    [accountNumber]
-  );
+  const [settingsResult, sourcesResult] = await Promise.all([
+    pool.query(
+      `SELECT prompt, sources, api_key FROM account_settings WHERE account_number = $1`,
+      [accountNumber]
+    ),
+    pool.query(
+      `SELECT name FROM account_sources WHERE account_number = $1`,
+      [accountNumber]
+    ),
+  ]);
 
-  if (result.rows.length === 0) {
+  if (settingsResult.rows.length === 0) {
     return { prompt: null, sources: [], api_key: null };
   }
 
-  const parsed = accountSettingsSchema.safeParse(result.rows[0]);
+  const parsed = accountSettingsSchema.safeParse(settingsResult.rows[0]);
   if (!parsed.success) {
     return { prompt: null, sources: [], api_key: null };
   }
 
+  // Prefer structured account_sources names; fall back to legacy text array
+  const structuredSources = sourcesResult.rows.map((r: { name: string }) => r.name);
+  const sources = structuredSources.length > 0 ? structuredSources : (parsed.data.sources ?? []);
+
   return {
     prompt: parsed.data.prompt ?? null,
-    sources: parsed.data.sources ?? [],
+    sources,
     api_key: parsed.data.api_key ?? null,
   };
 };

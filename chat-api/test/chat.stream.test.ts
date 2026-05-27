@@ -77,7 +77,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('accepts message of exactly 300 characters', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -137,7 +139,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('does NOT block a normal message', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -154,7 +158,9 @@ describe('POST /v1/chat/stream', () => {
 
   describe('authentication', () => {
     it('returns 401 when no API key header is provided', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -165,7 +171,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('returns 401 when wrong API key is provided', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -176,9 +184,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('returns 401 when account has no api_key configured', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({
-        rows: [{ prompt: null, sources: [], api_key: null }],
-      } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [{ prompt: null, sources: [], api_key: null }] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -189,7 +197,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('returns 401 when account is not found', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const res = await request(app)
         .post('/v1/chat/stream')
@@ -204,7 +214,9 @@ describe('POST /v1/chat/stream', () => {
 
   describe('successful SSE response', () => {
     it('streams meta → token → done events in order', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       const fetchMock = vi
         .fn()
@@ -242,7 +254,9 @@ describe('POST /v1/chat/stream', () => {
     });
 
     it('returns 502 when Gemini call fails', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never);
+      vi.mocked(pool.query)
+        .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
 
       vi.stubGlobal(
         'fetch',
