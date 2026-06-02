@@ -2,9 +2,15 @@
 -- Counts collectibles when a player touches a golden duck or hidden pejecito.
 
 local Players = game:GetService("Players")
+local BadgeService = game:GetService("BadgeService")
 
 local GOLDEN_DUCKS_FOLDER_NAME = "Patos"
 local PEJECITOS_FOLDER_NAME = "PejecitosBB"
+
+local PEJECITOS_BADGE_ID = 0         -- TODO: replace with your real Badge ID
+local GOLDEN_DUCKS_BADGE_ID = 0      -- TODO: replace with your real Badge ID (optional)
+local TOTAL_PEJECITOS = 3
+local TOTAL_GOLDEN_DUCKS = 2
 
 local GOLDEN_DUCK_NAMES = {
 	GoldenDuckNPC = true,
@@ -78,11 +84,31 @@ local function registerFound(player, collectibleType, collectibleId)
 		local stat = leaderstats:FindFirstChild("GoldenDucksFound")
 		if stat then
 			stat.Value += 1
+			if GOLDEN_DUCKS_BADGE_ID ~= 0 and stat.Value >= TOTAL_GOLDEN_DUCKS then
+				local success, alreadyHas = pcall(function()
+					return BadgeService:UserHasBadgeAsync(player.UserId, GOLDEN_DUCKS_BADGE_ID)
+				end)
+				if success and not alreadyHas then
+					pcall(function()
+						BadgeService:AwardBadge(player.UserId, GOLDEN_DUCKS_BADGE_ID)
+					end)
+				end
+			end
 		end
 	elseif collectibleType == "Pejecito" then
 		local stat = leaderstats:FindFirstChild("PejecitosFound")
 		if stat then
 			stat.Value += 1
+			if PEJECITOS_BADGE_ID ~= 0 and stat.Value >= TOTAL_PEJECITOS then
+				local success, alreadyHas = pcall(function()
+					return BadgeService:UserHasBadgeAsync(player.UserId, PEJECITOS_BADGE_ID)
+				end)
+				if success and not alreadyHas then
+					pcall(function()
+						BadgeService:AwardBadge(player.UserId, PEJECITOS_BADGE_ID)
+					end)
+				end
+			end
 		end
 	end
 end
