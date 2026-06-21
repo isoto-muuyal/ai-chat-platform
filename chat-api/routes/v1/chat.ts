@@ -7,6 +7,10 @@ import { pool } from '../../config/db.js';
 import { promptSanitizer } from '../../src/services/prompt-sanitizer.js';
 import { TOPIC_PROMPT_FRAGMENT, normalizeTopic } from '../../src/services/topic-classifier.js';
 import { executeInferGeminiCall, executeMainGeminiCall } from '../../src/services/resilience.js';
+import { resolveSourceConfig } from '../../src/services/message-routing.js';
+import { generateText } from '../../src/services/llm.js';
+import { buildAgentPrompt } from '../../src/services/agent-context.js';
+import { assertUsageAllowed, recordUsage } from '../../src/services/usage-limits.js';
 
 const router = Router();
 
@@ -271,6 +275,7 @@ const persistInteraction = async (params: {
     }
 
     await client.query('COMMIT');
+    await recordUsage({ accountNumber, conversationId });
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -323,18 +328,26 @@ router.post('/stream', async (req: Request, res: Response) => {
   }
 
   const apiKey = req.header('x-api-key');
-  const accountSettings = await getAccountSettings(accountNumber);
+  let sourceConfig: Awaited<ReturnType<typeof resolveSourceConfig>>;
+  try {
+    sourceConfig = await resolveSourceConfig(accountNumber, sourceClient);
+  } catch (error) {
+    logger.warn({ err: error, accountNumber, sourceClient }, 'source resolution failed');
+    return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid sourceClient' });
+  }
   logger.info(
     {
       accountNumber,
-      hasPrompt: Boolean(accountSettings.prompt && accountSettings.prompt.trim()),
-      promptLength: accountSettings.prompt ? accountSettings.prompt.length : 0,
-      sourcesCount: accountSettings.sources?.length || 0,
-      hasApiKey: Boolean(accountSettings.api_key),
+      sourceClient: sourceConfig.sourceName,
+      sourceType: sourceConfig.sourceType,
+      destinationProvider: sourceConfig.destination.provider,
+      hasPrompt: Boolean(sourceConfig.prompt && sourceConfig.prompt.trim()),
+      promptLength: sourceConfig.prompt ? sourceConfig.prompt.length : 0,
+      hasApiKey: Boolean(sourceConfig.accountApiKey),
     },
-    'account settings loaded'
+    'source config loaded'
   );
-  const expectedKey = accountSettings.api_key;
+  const expectedKey = sourceConfig.accountApiKey;
 
   if (!apiKey || !expectedKey || apiKey !== expectedKey) {
     logger.warn(
@@ -348,20 +361,24 @@ router.post('/stream', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const normalizedSources = (accountSettings.sources || []).map((value) => value.trim()).filter(Boolean);
-  if (sourceClient && normalizedSources.length > 0 && !normalizedSources.includes(sourceClient)) {
-    logger.warn(
-      {
-        accountNumber,
-        sourceClient,
-        allowedSources: normalizedSources,
-      },
-      'invalid source client'
-    );
-    return res.status(400).json({ error: 'Invalid sourceClient' });
+  const resolvedSourceClient = sourceConfig.sourceName;
+  const usage = await assertUsageAllowed({ accountNumber, conversationId });
+  if (!usage.allowed) {
+    const payload = {
+      error: 'upgrade_required',
+      reason: usage.reason,
+      limit: usage.limit,
+      conversationId,
+    };
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.write(`event: error\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    res.write(`event: done\n`);
+    res.write(`data: ${JSON.stringify({ ok: false, error: 'upgrade_required' })}\n\n`);
+    return res.end();
   }
-
-  const resolvedSourceClient = sourceClient || normalizedSources[0] || null;
 
   logger.info(
     {
@@ -379,53 +396,30 @@ router.post('/stream', async (req: Request, res: Response) => {
     'chat request received'
   );
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_KEY}`;
-  const prompt = accountSettings.prompt?.trim();
-  const userText = prompt ? `${prompt}\n\nUsuario: ${message}` : message;
-  const geminiBody: Record<string, unknown> = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: userText }],
-      },
-    ],
-  };
+  const prompt = await buildAgentPrompt({
+    accountNumber,
+    sourceName: resolvedSourceClient,
+    basePrompt: sourceConfig.prompt,
+  });
   logger.info(
     {
       accountNumber,
       hasPrompt: Boolean(prompt),
-      model: env.GEMINI_MODEL,
+      model: sourceConfig.destination.model,
+      provider: sourceConfig.destination.provider,
     },
-    'gemini request prepared'
+    'llm request prepared'
   );
 
-  const geminiRequest = async () => {
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiBody),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error(
-        { status: response.status, errorText },
-        'gemini request failed'
-      );
-      throw new Error(`Gemini error ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      logger.error({ data }, 'gemini response missing text');
-      throw new Error('Gemini response missing text');
-    }
-
-    return text as string;
-  };
-
-  executeMainGeminiCall(geminiRequest)
+  executeMainGeminiCall(() =>
+    generateText({
+      provider: sourceConfig.destination.provider,
+      model: sourceConfig.destination.model,
+      apiKey: sourceConfig.destination.apiKey,
+      prompt,
+      message,
+    })
+  )
     .then((text) => {
       // Set SSE headers
       res.setHeader('Content-Type', 'text/event-stream');
@@ -475,7 +469,7 @@ router.post('/stream', async (req: Request, res: Response) => {
       });
     })
     .catch((err) => {
-      logger.error({ err }, 'Gemini request failed');
+      logger.error({ err }, 'LLM request failed');
       return res.status(502).json({ error: 'Upstream AI request failed' });
     });
 });

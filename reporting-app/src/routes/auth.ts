@@ -5,6 +5,15 @@ import { logger } from '../config/logger.js';
 import { pool } from '../config/db.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { sendEmail } from '../services/mailer.js';
+import {
+  getGoogleAuthUrl,
+  getSupabaseCompany,
+  getSupabaseDisplayName,
+  getSupabaseUserEmail,
+  getUserFromAccessToken,
+  signInWithPassword,
+  signUpWithPassword,
+} from '../services/supabase-auth.js';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 
@@ -21,14 +30,26 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const signupSchema = z.object({
+  fullName: z.string().min(1).max(120),
+  email: z.string().email(),
+  company: z.string().max(120).optional().nullable(),
+  password: z.string().min(8).max(128),
+  plan: z.enum(['free', 'pro']).default('free'),
+});
+
+const supabaseSessionSchema = z.object({
+  accessToken: z.string().min(1),
+});
+
 const accountSettingsSchema = z.object({
   prompt: z.string().max(4000).optional().nullable(),
   sources: z.array(z.string().min(1).max(64)).optional(),
 });
 
 const destinationProviderSchema = z.enum(['gemini', 'openai', 'ollama', 'huggingface']);
-const sourceTypeSchema = z.enum(['roblox', 'whatsapp', 'web_app', 'other']);
-const sourceProviderSchema = z.enum(['api', 'twilio_whatsapp']);
+const sourceTypeSchema = z.enum(['roblox', 'whatsapp', 'sms', 'web_app', 'other']);
+const sourceProviderSchema = z.enum(['api', 'twilio_whatsapp', 'twilio_sms']);
 
 const sourceManagementSchema = z.object({
   destinations: z.array(
@@ -70,6 +91,93 @@ const ensureCsrfToken = (req: Request): string => {
     req.session!.csrfToken = crypto.randomBytes(32).toString('hex');
   }
   return req.session!.csrfToken;
+};
+
+const attachSessionUser = (req: Request, user: {
+  id: string;
+  email: string;
+  full_name: string | null;
+  company: string | null;
+  role: 'sysadmin' | 'user';
+  account_number: number;
+  language: 'en' | 'es' | 'fr';
+  theme: 'light' | 'dark';
+}) => {
+  req.session!.authenticated = true;
+  req.session!.userId = user.id;
+  req.session!.email = user.email;
+  req.session!.fullName = user.full_name || user.email;
+  req.session!.company = user.company;
+  req.session!.language = user.language;
+  req.session!.theme = user.theme;
+  req.session!.role = user.role;
+  req.session!.accountNumber = user.account_number;
+};
+
+const serializeUser = (req: Request, user: {
+  id: string;
+  email: string;
+  full_name: string | null;
+  company: string | null;
+  role: 'sysadmin' | 'user';
+  account_number: number;
+  language: 'en' | 'es' | 'fr';
+  theme: 'light' | 'dark';
+}) => ({
+  id: user.id,
+  email: user.email,
+  fullName: user.full_name || '',
+  company: user.company,
+  role: user.role,
+  accountNumber: user.account_number,
+  language: user.language,
+  theme: user.theme,
+  csrfToken: ensureCsrfToken(req),
+  authenticated: true,
+});
+
+const ensureLocalUserForSupabase = async (supabaseUser: {
+  id: string;
+  email?: string;
+  user_metadata?: { full_name?: string; name?: string; company?: string };
+}) => {
+  const email = getSupabaseUserEmail(supabaseUser);
+  const existing = await pool.query(
+    `SELECT id, supabase_user_id, email, full_name, company, role, account_number, language, theme
+     FROM app_users
+     WHERE supabase_user_id = $1 OR email = $2
+     LIMIT 1`,
+    [supabaseUser.id, email]
+  );
+
+  if (existing.rows.length > 0) {
+    const row = existing.rows[0];
+    if (!row.supabase_user_id) {
+      await pool.query('UPDATE app_users SET supabase_user_id = $1, updated_at = NOW() WHERE id = $2', [
+        supabaseUser.id,
+        row.id,
+      ]);
+    }
+    return row;
+  }
+
+  const passwordHash = await hashPassword(crypto.randomBytes(32).toString('base64url'));
+  const inserted = await pool.query(
+    `INSERT INTO app_users (
+      id, supabase_user_id, email, full_name, company, role, account_number, password_hash, language, theme, created_at, updated_at
+    ) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'user', DEFAULT, $5, 'en', 'light', NOW(), NOW())
+    RETURNING id, email, full_name, company, role, account_number, language, theme`,
+    [supabaseUser.id, email, getSupabaseDisplayName(supabaseUser), getSupabaseCompany(supabaseUser), passwordHash]
+  );
+  const user = inserted.rows[0];
+  await ensureAccountSettings(user.account_number);
+  await pool.query(
+    `INSERT INTO account_subscriptions (account_number, plan, provider, status, created_at, updated_at)
+     VALUES ($1, 'free', NULL, 'active', NOW(), NOW())
+     ON CONFLICT (account_number) DO NOTHING`,
+    [user.account_number]
+  );
+  return user;
 };
 
 const ensureAccountSettings = async (accountNumber: number) => {
@@ -176,15 +284,17 @@ const validateSourceManagement = (
     if (!destinationNameSet.has(source.destinationName.trim())) {
       throw new Error(`Source "${source.name}" references an unknown destination`);
     }
-    if (source.sourceType === 'whatsapp') {
-      if (source.provider !== 'twilio_whatsapp') {
-        throw new Error(`WhatsApp source "${source.name}" must use the Twilio WhatsApp provider`);
+    if (source.sourceType === 'whatsapp' || source.sourceType === 'sms') {
+      const requiredProvider = source.sourceType === 'whatsapp' ? 'twilio_whatsapp' : 'twilio_sms';
+      const label = source.sourceType === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      if (source.provider !== requiredProvider) {
+        throw new Error(`${label} source "${source.name}" must use the Twilio ${label} provider`);
       }
       if (!source.providerIdentifier?.trim()) {
-        throw new Error(`WhatsApp source "${source.name}" requires a provider identifier`);
+        throw new Error(`${label} source "${source.name}" requires a provider identifier`);
       }
       if (!source.providerSecret?.trim()) {
-        throw new Error(`WhatsApp source "${source.name}" requires a provider secret`);
+        throw new Error(`${label} source "${source.name}" requires a provider secret`);
       }
     } else if (source.provider !== 'api') {
       throw new Error(`Source "${source.name}" must use the API provider`);
@@ -209,10 +319,101 @@ const validateSourceManagement = (
   };
 };
 
+router.post('/signup', authLimiter, (req: Request, res: Response) => {
+  void (async () => {
+    try {
+      const data = signupSchema.parse(req.body);
+      const supabaseUser = await signUpWithPassword({
+        email: data.email.toLowerCase(),
+        password: data.password,
+        fullName: data.fullName,
+        company: data.company,
+        redirectTo: `${env.APP_BASE_URL.replace(/\/$/, '')}/login`,
+      });
+
+      if (!supabaseUser) {
+        return res.status(202).json({
+          pendingConfirmation: true,
+          message: 'Check your email to confirm your account before signing in.',
+        });
+      }
+
+      const user = await ensureLocalUserForSupabase({
+        ...supabaseUser,
+        user_metadata: {
+          ...(supabaseUser.user_metadata || {}),
+          full_name: data.fullName,
+          company: data.company || '',
+        },
+      });
+      attachSessionUser(req, user);
+
+      if (data.plan === 'free') {
+        await pool.query(
+          `INSERT INTO account_subscriptions (account_number, plan, provider, status, created_at, updated_at)
+           VALUES ($1, 'free', NULL, 'active', NOW(), NOW())
+           ON CONFLICT (account_number) DO UPDATE SET plan = 'free', status = 'active', updated_at = NOW()`,
+          [user.account_number]
+        );
+      }
+
+      return res.status(201).json({
+        ...serializeUser(req, user),
+        requiresPayment: data.plan === 'pro',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request' });
+      }
+      logger.error({ err: error }, 'Signup error');
+      return res.status(400).json({ error: error instanceof Error ? error.message : 'Signup failed' });
+    }
+  })();
+});
+
+router.get('/google', authLimiter, (_req: Request, res: Response) => {
+  try {
+    return res.redirect(getGoogleAuthUrl(`${env.APP_BASE_URL.replace(/\/$/, '')}/auth/callback`));
+  } catch (error) {
+    logger.error({ err: error }, 'Google auth start failed');
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Google auth is unavailable' });
+  }
+});
+
+router.post('/supabase-session', authLimiter, (req: Request, res: Response) => {
+  void (async () => {
+    try {
+      const { accessToken } = supabaseSessionSchema.parse(req.body);
+      const supabaseUser = await getUserFromAccessToken(accessToken);
+      const user = await ensureLocalUserForSupabase(supabaseUser);
+      attachSessionUser(req, user);
+      return res.json(serializeUser(req, user));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request' });
+      }
+      logger.error({ err: error }, 'Supabase session error');
+      return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid Supabase session' });
+    }
+  })();
+});
+
 router.post('/login', authLimiter, (req: Request, res: Response) => {
   void (async () => {
     try {
       const { email, password } = loginSchema.parse(req.body);
+
+      if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
+        try {
+          const supabaseUser = await signInWithPassword(email.toLowerCase(), password);
+          const user = await ensureLocalUserForSupabase(supabaseUser);
+          attachSessionUser(req, user);
+          logger.info({ email }, 'Supabase user logged in');
+          return res.json(serializeUser(req, user));
+        } catch (error) {
+          logger.warn({ err: error, email }, 'Supabase login failed, trying local fallback');
+        }
+      }
 
       const userResult = await pool.query(
         `SELECT 

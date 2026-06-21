@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
+import About from './pages/About';
+import AuthCallback from './pages/AuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -14,6 +17,7 @@ import Settings from './pages/Settings';
 import SourceManagement from './pages/SourceManagement';
 import AdminUsers from './pages/AdminUsers';
 import MessageBoards from './pages/MessageBoards';
+import AgentContext from './pages/AgentContext';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -35,6 +39,9 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
@@ -52,6 +59,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="settings" element={<Settings />} />
           <Route path="sources" element={<SourceManagement />} />
+          <Route path="agent-context" element={<AgentContext />} />
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />

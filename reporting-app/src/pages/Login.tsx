@@ -34,6 +34,8 @@ export default function Login() {
 
         {error && <div className="error">{error}</div>}
 
+        <a className="google-btn" href="/api/auth/google">Continue with Google</a>
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="email">Email</label>
@@ -62,6 +64,8 @@ export default function Login() {
         </form>
         <div className="forgot-wrapper">
           <Link to="/forgot-password">Forgot password?</Link>
+          <span> · </span>
+          <Link to="/signup">Create account</Link>
         </div>
       </div>
     </div>

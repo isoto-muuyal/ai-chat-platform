@@ -123,6 +123,28 @@
   color: var(--text-muted);
 }
 
+.embed-snippet {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.embed-snippet h4 {
+  margin: 0;
+}
+
+.embed-snippet pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 13px;
+}
+
 @media (max-width: 720px) {
   .card-header {
     flex-direction: column;

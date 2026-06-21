@@ -3,8 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import './SourceManagement.css';
 
 type DestinationProvider = 'gemini' | 'openai' | 'ollama' | 'huggingface';
-type SourceType = 'roblox' | 'whatsapp' | 'web_app' | 'other';
-type SourceProvider = 'api' | 'twilio_whatsapp';
+type SourceType = 'roblox' | 'whatsapp' | 'sms' | 'web_app' | 'other';
+type SourceProvider = 'api' | 'twilio_whatsapp' | 'twilio_sms';
 
 type Destination = {
   name: string;
@@ -100,7 +100,8 @@ export default function SourceManagement() {
 
         if (field === 'sourceType') {
           const nextSourceType = value as SourceType;
-          const provider = nextSourceType === 'whatsapp' ? 'twilio_whatsapp' : 'api';
+          const provider =
+            nextSourceType === 'whatsapp' ? 'twilio_whatsapp' : nextSourceType === 'sms' ? 'twilio_sms' : 'api';
           return { ...source, sourceType: nextSourceType, provider };
         }
 
@@ -293,6 +294,7 @@ export default function SourceManagement() {
                     >
                       <option value="roblox">Roblox</option>
                       <option value="whatsapp">WhatsApp</option>
+                      <option value="sms">SMS</option>
                       <option value="web_app">Web app</option>
                       <option value="other">Other</option>
                     </select>
@@ -302,10 +304,14 @@ export default function SourceManagement() {
                     <select
                       value={source.provider}
                       onChange={(event) => updateSource(index, 'provider', event.target.value)}
-                      disabled={source.sourceType !== 'whatsapp'}
+                      disabled={source.sourceType !== 'whatsapp' && source.sourceType !== 'sms'}
                     >
-                      <option value={source.sourceType === 'whatsapp' ? 'twilio_whatsapp' : 'api'}>
-                        {source.sourceType === 'whatsapp' ? 'Twilio WhatsApp' : 'Direct API'}
+                      <option value={source.sourceType === 'whatsapp' ? 'twilio_whatsapp' : source.sourceType === 'sms' ? 'twilio_sms' : 'api'}>
+                        {source.sourceType === 'whatsapp'
+                          ? 'Twilio WhatsApp'
+                          : source.sourceType === 'sms'
+                            ? 'Twilio SMS'
+                            : 'Direct API'}
                       </option>
                     </select>
                   </label>
@@ -332,14 +338,14 @@ export default function SourceManagement() {
                       placeholder="Source-specific prompt"
                     />
                   </label>
-                  {source.sourceType === 'whatsapp' && (
+                  {(source.sourceType === 'whatsapp' || source.sourceType === 'sms') && (
                     <>
                       <label>
                         Twilio identifier
                         <input
                           value={source.providerIdentifier}
                           onChange={(event) => updateSource(index, 'providerIdentifier', event.target.value)}
-                          placeholder="whatsapp:+14155238886"
+                          placeholder={source.sourceType === 'whatsapp' ? 'whatsapp:+14155238886' : '+14155550123'}
                         />
                       </label>
                       <label>
@@ -372,7 +378,7 @@ export default function SourceManagement() {
           <div className="card-header">
             <div>
               <h3>Client API Access</h3>
-              <p>External clients still call the chat API with the source name in `sourceClient`.</p>
+              <p>External web chat clients call the chat API with the source name in `sourceClient`.</p>
             </div>
           </div>
           <div className="item-grid">
@@ -398,6 +404,17 @@ export default function SourceManagement() {
                 </button>
               </div>
             </label>
+          </div>
+          <div className="embed-snippet">
+            <h4>Web chat embed</h4>
+            <pre>{`<script>
+window.AIChatPlatform = {
+  apiUrl: '${apiUrl}',
+  accountNumber: ${user?.accountNumber || 0},
+  sourceClient: 'web-main',
+  apiKey: '${apiKey}'
+};
+</script>`}</pre>
           </div>
         </section>
 

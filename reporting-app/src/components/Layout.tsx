@@ -31,6 +31,7 @@ export default function Layout() {
           <Link to="/recommendations">{t('recommendations')}</Link>
           <Link to="/message-boards">{t('messageBoards')}</Link>
           <Link to="/sources">{t('sourceManagement')}</Link>
+          <Link to="/agent-context">Agent Context</Link>
           <Link to="/settings">{t('settings')}</Link>
           {user?.role === 'sysadmin' && <Link to="/admin/users">Admin</Link>}
         </nav>

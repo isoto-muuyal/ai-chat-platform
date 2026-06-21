@@ -2,21 +2,13 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { logger } from '../../config/logger.js';
 import { sentimentAnalyzer } from '../../src/services/sentiment-analyzer.js';
-import { resolveTwilioWhatsAppSource } from '../../src/services/message-routing.js';
+import { resolveTwilioSmsSource } from '../../src/services/message-routing.js';
 import { generateText } from '../../src/services/llm.js';
 import { buildAgentPrompt } from '../../src/services/agent-context.js';
 import { getOrCreateChannelConversation, persistInteraction } from '../../src/services/chat-storage.js';
 import { assertUsageAllowed } from '../../src/services/usage-limits.js';
 
 const router = Router();
-
-const xmlEscape = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 
 const buildTwilioSignature = (authToken: string, url: string, body: Record<string, string | string[] | undefined>) => {
   const sortedKeys = Object.keys(body).sort();
@@ -56,14 +48,14 @@ router.post('/twilio/webhook', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing Twilio identifiers' });
   }
 
-  const resolved = await resolveTwilioWhatsAppSource(toNumber);
+  const resolved = await resolveTwilioSmsSource(toNumber);
   if (!resolved) {
-    logger.warn({ toNumber }, 'twilio whatsapp source not found');
+    logger.warn({ toNumber }, 'twilio sms source not found');
     return res.status(404).json({ error: 'Source not found' });
   }
 
   if (!resolved.config.providerSecret || !validateTwilioRequest(req, resolved.config.providerSecret)) {
-    logger.warn({ toNumber }, 'invalid twilio signature');
+    logger.warn({ toNumber }, 'invalid twilio sms signature');
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
@@ -75,7 +67,7 @@ router.post('/twilio/webhook', async (req: Request, res: Response) => {
   try {
     const conversationId = await getOrCreateChannelConversation(
       resolved.accountNumber,
-      resolved.config.sourceName || 'whatsapp',
+      resolved.config.sourceName || 'sms',
       fromNumber
     );
     const usage = await assertUsageAllowed({ accountNumber: resolved.accountNumber, conversationId });
@@ -111,9 +103,9 @@ router.post('/twilio/webhook', async (req: Request, res: Response) => {
     });
 
     res.type('text/xml');
-    return res.send(`<Response><Message>${xmlEscape(text)}</Message></Response>`);
+    return res.send(`<Response><Message>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</Message></Response>`);
   } catch (err) {
-    logger.error({ err, toNumber }, 'twilio whatsapp webhook failed');
+    logger.error({ err, toNumber }, 'twilio sms webhook failed');
     res.type('text/xml');
     return res.send('<Response><Message>We are unavailable right now. Please try again shortly.</Message></Response>');
   }

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { pool } from '../../config/db.js';
 import { env } from '../../config/env.js';
 import type { SentimentLabel } from './sentiment-analyzer.js';
+import { recordUsage } from './usage-limits.js';
 
 export const persistInteraction = async (params: {
   conversationId: string;
@@ -132,6 +133,7 @@ export const persistInteraction = async (params: {
     }
 
     await client.query('COMMIT');
+    await recordUsage({ accountNumber, conversationId });
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

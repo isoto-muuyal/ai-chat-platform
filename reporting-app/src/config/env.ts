@@ -42,6 +42,16 @@ const envSchema = z.object({
   MAIL_FROM: z.string().email('MAIL_FROM must be a valid email'),
   APP_BASE_URL: z.string().url('APP_BASE_URL must be a valid URL'),
   CHAT_API_URL: z.string().url('CHAT_API_URL must be a valid URL'),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  PAYPAL_ENVIRONMENT: z.enum(['sandbox', 'live']).default('sandbox'),
+  PAYPAL_CLIENT_ID: z.string().optional(),
+  PAYPAL_CLIENT_SECRET: z.string().optional(),
+  PAYPAL_WEBHOOK_ID: z.string().optional(),
+  PAYPAL_PRO_PLAN_ID: z.string().optional(),
+  PAYPAL_RETURN_URL: z.string().url().optional(),
+  PAYPAL_CANCEL_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

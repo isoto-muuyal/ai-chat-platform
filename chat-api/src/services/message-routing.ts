@@ -2,8 +2,8 @@ import { pool } from '../../config/db.js';
 import { env } from '../../config/env.js';
 
 export type DestinationProvider = 'gemini' | 'openai' | 'ollama' | 'huggingface';
-export type SourceType = 'roblox' | 'whatsapp' | 'web_app' | 'other';
-export type SourceProvider = 'api' | 'twilio_whatsapp';
+export type SourceType = 'roblox' | 'whatsapp' | 'sms' | 'web_app' | 'other';
+export type SourceProvider = 'api' | 'twilio_whatsapp' | 'twilio_sms';
 
 export type ResolvedSourceConfig = {
   accountApiKey: string | null;
@@ -142,7 +142,11 @@ export const listAccountSources = async (accountNumber: number): Promise<string[
   return legacy.sources.map((value) => value.trim()).filter(Boolean);
 };
 
-export const resolveTwilioWhatsAppSource = async (providerIdentifier: string) => {
+export const resolveTwilioSource = async (
+  sourceType: 'whatsapp' | 'sms',
+  provider: 'twilio_whatsapp' | 'twilio_sms',
+  providerIdentifier: string
+) => {
   const result = await pool.query(
     `SELECT
       s.account_number,
@@ -160,11 +164,11 @@ export const resolveTwilioWhatsAppSource = async (providerIdentifier: string) =>
      FROM account_sources s
      JOIN account_destinations d ON d.id = s.destination_id
      JOIN account_settings a ON a.account_number = s.account_number
-     WHERE s.source_type = 'whatsapp'
-       AND s.provider = 'twilio_whatsapp'
+     WHERE s.source_type = $3
+       AND s.provider = $4
        AND s.provider_identifier = $1
      LIMIT 1`,
-    [providerIdentifier, env.MESSAGE_ENCRYPTION_KEY]
+    [providerIdentifier, env.MESSAGE_ENCRYPTION_KEY, sourceType, provider]
   );
 
   const row = result.rows[0];
@@ -191,3 +195,9 @@ export const resolveTwilioWhatsAppSource = async (providerIdentifier: string) =>
     } satisfies ResolvedSourceConfig,
   };
 };
+
+export const resolveTwilioWhatsAppSource = async (providerIdentifier: string) =>
+  resolveTwilioSource('whatsapp', 'twilio_whatsapp', providerIdentifier);
+
+export const resolveTwilioSmsSource = async (providerIdentifier: string) =>
+  resolveTwilioSource('sms', 'twilio_sms', providerIdentifier);

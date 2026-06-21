@@ -78,6 +78,21 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.google-btn {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 18px;
+  border: 1px solid #d0d7e2;
+  border-radius: 6px;
+  color: #333;
+  background: white;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);

@@ -10,6 +10,8 @@ import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import exportRouter from './routes/export.js';
 import adminRouter from './routes/admin.js';
+import billingRouter from './routes/billing.js';
+import agentContextRouter from './routes/agent-context.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,6 +81,8 @@ app.use('/api/auth', authRouter);
 app.use('/api', apiRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/billing', billingRouter);
+app.use('/api/agent-context', agentContextRouter);
 app.use(healthRouter);
 
 // Serve React app in production

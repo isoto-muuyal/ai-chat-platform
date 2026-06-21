@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- App users (login + roles)
 CREATE TABLE IF NOT EXISTS app_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  supabase_user_id uuid UNIQUE,
   email text UNIQUE NOT NULL,
   full_name text,
   company text,
@@ -81,6 +82,43 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS source_client text;
 ALTER TABLE analytics ADD COLUMN IF NOT EXISTS account_number bigint;
 ALTER TABLE analytics ADD COLUMN IF NOT EXISTS source_client text;
 ALTER TABLE account_settings ADD COLUMN IF NOT EXISTS api_key text;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS supabase_user_id uuid UNIQUE;
+
+CREATE TABLE IF NOT EXISTS account_subscriptions (
+  account_number bigint PRIMARY KEY,
+  plan text NOT NULL DEFAULT 'free',
+  provider text,
+  provider_subscription_id text UNIQUE,
+  status text NOT NULL DEFAULT 'active',
+  current_period_start timestamptz,
+  current_period_end timestamptz,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS account_usage_monthly (
+  account_number bigint NOT NULL,
+  usage_month date NOT NULL,
+  conversations_count integer NOT NULL DEFAULT 0,
+  messages_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (account_number, usage_month)
+);
+
+CREATE TABLE IF NOT EXISTS agent_contexts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_number bigint NOT NULL,
+  source_name text,
+  title text NOT NULL,
+  content text NOT NULL,
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_contexts_account_source
+  ON agent_contexts(account_number, source_name, enabled);
 
 -- Recommendations
 CREATE TABLE IF NOT EXISTS recommendations (
