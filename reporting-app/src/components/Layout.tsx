@@ -20,6 +20,12 @@ export default function Layout() {
 
   return (
     <div className="layout">
+      <nav className="public-links-bar">
+        <Link to="/about">About Us</Link>
+        <Link to="/how-it-works">How It Works</Link>
+        <Link to="/privacy">Privacy</Link>
+        <Link to="/contact">Contact Us</Link>
+      </nav>
       <header className="header">
         <h1>{t('appTitle')}</h1>
         <nav className="nav">

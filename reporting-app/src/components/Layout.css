@@ -4,6 +4,25 @@
   flex-direction: column;
 }
 
+.public-links-bar {
+  display: flex;
+  gap: 18px;
+  padding: 8px 40px;
+  background: var(--surface-muted, #f1f3f9);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.public-links-bar a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.public-links-bar a:hover {
+  text-decoration: underline;
+}
+
 .header {
   background: var(--header-bg);
   border-bottom: 1px solid var(--border);

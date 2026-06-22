@@ -157,6 +157,61 @@ data: {"ok":true}
 curl http://localhost:3000/healthz
 ```
 
+## First-Time Setup: Accounts & `.env` Walkthrough
+
+Both `chat-api` and `reporting-app` read from `.env` files (copy each app's `.env.example` to `.env`). They share one PostgreSQL database via `DB_URL`. Here's what to set up, in order:
+
+### 1. PostgreSQL database (required)
+
+You need one Postgres database, reachable from both apps, set as `DB_URL` in **both** `chat-api/.env` and `reporting-app/.env`.
+
+- **Local dev**: any local Postgres works (`postgresql://user:password@localhost:5432/dbname`). No manual schema setup needed — `reporting-app` runs `sql/migrations/*.sql` automatically on boot (idempotent, safe to re-run).
+- **Hosted option (recommended): Supabase**
+  1. Create a free project at supabase.com.
+  2. In Project Settings → Database, copy the connection string (use the "Session pooler" or direct connection URI) and set it as `DB_URL`.
+  3. You do **not** need the Supabase client libraries or API keys just for the database — `DB_URL` alone is enough for `pg`.
+  4. Only set `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` (in `reporting-app/.env`) if you also want Supabase Auth for Google/social login on top of the existing email/password login — this is optional.
+- The database must have the `pgcrypto` extension available (Supabase enables it by default; on self-hosted Postgres run `CREATE EXTENSION IF NOT EXISTS pgcrypto;` once) — it's used to encrypt API keys and PayPal secrets at rest.
+
+### 2. Gemini API key (required, chat-api only)
+
+1. Create a key at https://aistudio.google.com/app/apikey.
+2. Set `GEMINI_KEY` in `chat-api/.env`. `GEMINI_MODEL` defaults to a Flash model; override if needed.
+
+### 3. MailerSend account (required, reporting-app only)
+
+Used for: account-creation emails, password reset emails, and Contact Us form notifications.
+
+1. Create a free account at mailersend.com.
+2. Verify a sending domain (or use their test domain while developing).
+3. Create an API token (Settings → API Tokens) and set it as `MAILERSEND_API_KEY`.
+4. Set `MAIL_FROM` to a verified sender address on that domain.
+5. Optionally set `CONTACT_NOTIFY_EMAIL` to a different inbox for Contact Us submissions (defaults to `MAIL_FROM`).
+
+### 4. PayPal account (required for credit purchases)
+
+Used for one-time, pay-as-you-go credit purchases (Orders v2 API). No subscription/Stripe integration exists in this codebase.
+
+1. Create a developer account at developer.paypal.com and create a Sandbox app (Apps & Credentials → Create App) to get a sandbox **Client ID** and **Secret**.
+2. You can either:
+   - Set `PAYPAL_ENVIRONMENT=sandbox`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` in `reporting-app/.env` as a fallback, **or**
+   - Leave them blank and instead log in as a sysadmin and configure them at `/admin/paypal` once the app is running — values saved there (in the `paypal_settings` table) always take priority over the `.env` fallback.
+3. To receive purchase confirmations via webhook, create a webhook in the PayPal Developer Dashboard pointing to `${APP_BASE_URL}/api/billing/paypal/webhook`, subscribe to payment/checkout events, and set the webhook ID (`PAYPAL_WEBHOOK_ID` env var or the Webhook ID field on `/admin/paypal`).
+4. When ready for real payments, create a Live app in the same dashboard and switch `environment` to `live` (either via `.env` or `/admin/paypal`).
+5. Credit package names/prices are also configured at `/admin/paypal` — no env vars needed for pricing.
+
+### 5. Session/encryption secrets (required)
+
+These aren't third-party accounts, just secrets you generate yourself (e.g. `openssl rand -hex 32`):
+
+- `SESSION_SECRET` (reporting-app, min 32 chars) — signs session cookies.
+- `MESSAGE_ENCRYPTION_KEY` (both apps, must match) — used by `pgcrypto` to encrypt stored API keys and the PayPal client secret. Must be identical in both `.env` files since both apps read/write encrypted columns in the same DB.
+- `ADMIN_USER` / `ADMIN_PASS` (reporting-app) — bootstrap sysadmin login credentials.
+
+### 6. Roblox-side scripts
+
+`roblox_scripts/` (e.g. `LevelModule.lua`) run inside Roblox Studio/Roblox's own runtime, not Node — they don't read `.env` and don't need any of the accounts above. They call the deployed `chat-api` HTTP endpoint directly using the per-account API key issued from `/settings` in `reporting-app`.
+
 ## Environment Variables
 
 ### chat-api
@@ -184,10 +239,14 @@ curl http://localhost:3000/healthz
 - `MESSAGE_ENCRYPTION_KEY` - Key for pgcrypto message encryption
 - `MAILERSEND_API_KEY` - MailerSend API key
 - `MAIL_FROM` - Sender email
+- `CONTACT_NOTIFY_EMAIL` - Where the Contact Us form notifies (optional, falls back to `MAIL_FROM`)
 - `APP_BASE_URL` - Base URL for web app (used in links + CORS)
 - `CHAT_API_URL` - Chat API base URL for settings page
 - `AUTH_RATE_LIMIT_WINDOW_MS` - Rate limit window in ms (default: 60000)
 - `AUTH_RATE_LIMIT_MAX` - Max auth requests per window (default: 10)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` - Optional, only needed for Google/social login
+- `PAYPAL_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` - Fallback PayPal credentials used only if no row exists in the `paypal_settings` table (configure from `/admin/paypal` instead once the app is running)
+- `PAYPAL_PRO_PLAN_ID`, `PAYPAL_RETURN_URL`, `PAYPAL_CANCEL_URL` - Optional, only used by the legacy subscription flow
 
 ### Reporting Auth Notes
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PublicNav from '../components/PublicNav';
 import './PublicPages.css';
 
 export default function Signup() {
@@ -61,12 +62,7 @@ export default function Signup() {
 
   return (
     <main className="public-page">
-      <nav className="public-nav">
-        <Link to="/about">AI Chat Platform</Link>
-        <div>
-          <Link to="/login">Login</Link>
-        </div>
-      </nav>
+      <PublicNav />
       <section className="signup-shell">
         <div className="signup-copy">
           <h1>Start with a free chatbot account.</h1>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PublicNav from '../components/PublicNav';
 import './Login.css';
+import './PublicPages.css';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,6 +30,7 @@ export default function Login() {
 
   return (
     <div className="login-container">
+      <PublicNav />
       <div className="login-card">
         <h1>Reporting Dashboard</h1>
         <p className="subtitle">Sign in to access the dashboard</p>
