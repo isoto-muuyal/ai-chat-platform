@@ -49,6 +49,9 @@ COPY --from=frontend-builder /app/dist/public ./dist/public
 # Copy built backend
 COPY --from=backend-builder /app/dist ./dist
 
+# Copy SQL migrations (applied automatically at startup)
+COPY sql ./sql
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001

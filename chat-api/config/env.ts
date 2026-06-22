@@ -30,16 +30,6 @@ const envSchema = z.object({
     .default('60')
     .transform((val: string) => parseInt(val, 10))
     .pipe(z.number().int().min(1)),
-  FREE_TIER_CONVERSATIONS_PER_MONTH: z
-    .string()
-    .default('50')
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().int().min(1)),
-  FREE_TIER_MESSAGES_PER_CONVERSATION: z
-    .string()
-    .default('5')
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().int().min(1)),
 });
 
 export type Env = z.infer<typeof envSchema>;

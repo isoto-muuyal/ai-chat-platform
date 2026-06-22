@@ -33,7 +33,15 @@ export default function Layout() {
           <Link to="/sources">{t('sourceManagement')}</Link>
           <Link to="/agent-context">Agent Context</Link>
           <Link to="/settings">{t('settings')}</Link>
-          {user?.role === 'sysadmin' && <Link to="/admin/users">Admin</Link>}
+          <Link to="/account">Your Account</Link>
+          {user?.role === 'sysadmin' && (
+            <>
+              <Link to="/admin/clients">Clients</Link>
+              <Link to="/admin/content">Content</Link>
+              <Link to="/admin/paypal">PayPal</Link>
+              <Link to="/admin/statistics">Statistics</Link>
+            </>
+          )}
         </nav>
         <div className="user-info">
           <span>

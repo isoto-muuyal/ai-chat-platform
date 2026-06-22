@@ -1,0 +1,77 @@
+.your-account {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.account-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel-bg, #fff);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 18px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #667085;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.package-card {
+  background: var(--panel-bg, #fff);
+  border: 1px solid #dde3ee;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.package-card h4 {
+  margin: 0 0 8px;
+}
+
+.package-card .price {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.package-card button {
+  margin-top: 10px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  padding: 10px;
+}

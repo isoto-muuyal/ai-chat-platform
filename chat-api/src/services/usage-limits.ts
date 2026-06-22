@@ -1,15 +1,13 @@
 import { pool } from '../../config/db.js';
-import { env } from '../../config/env.js';
 
 type UsageAllowed = {
   allowed: true;
-  plan: string;
+  balance: number;
 };
 
 type UsageBlocked = {
   allowed: false;
-  plan: string;
-  reason: 'monthly_conversation_limit' | 'conversation_message_limit';
+  reason: 'insufficient_credits';
   limit: number;
 };
 
@@ -22,65 +20,17 @@ export const assertUsageAllowed = async (params: {
   accountNumber: number;
   conversationId: string;
 }): Promise<UsageAllowed | UsageBlocked> => {
-  const subscriptionResult = await pool.query(
-    `SELECT plan, status
-     FROM account_subscriptions
-     WHERE account_number = $1`,
+  const result = await pool.query(
+    `SELECT balance FROM account_credits WHERE account_number = $1`,
     [params.accountNumber]
   );
-  const subscription = subscriptionResult?.rows?.[0];
-  const plan = subscription?.plan || 'free';
-  const status = subscription?.status || 'active';
+  const balance = Number(result.rows[0]?.balance || 0);
 
-  if (plan !== 'free' && ['active', 'approval_pending', 'approved'].includes(String(status).toLowerCase())) {
-    return { allowed: true, plan };
+  if (balance <= 0) {
+    return { allowed: false, reason: 'insufficient_credits', limit: 0 };
   }
 
-  const month = getUsageMonth();
-  const [monthlyResult, conversationResult, existingConversationResult] = await Promise.all([
-    pool.query(
-      `SELECT conversations_count
-       FROM account_usage_monthly
-       WHERE account_number = $1 AND usage_month = $2`,
-      [params.accountNumber, month]
-    ),
-    pool.query(
-      `SELECT COUNT(*)::int AS count
-       FROM messages
-       WHERE account_number = $1 AND conversation_id = $2 AND sender = 'user'`,
-      [params.accountNumber, params.conversationId]
-    ),
-    pool.query(
-      `SELECT 1
-       FROM conversations
-       WHERE account_number = $1 AND id = $2
-       LIMIT 1`,
-      [params.accountNumber, params.conversationId]
-    ),
-  ]);
-
-  const isNewConversation = (existingConversationResult?.rows?.length || 0) === 0;
-  const monthlyCount = Number(monthlyResult?.rows?.[0]?.conversations_count || 0);
-  if (isNewConversation && monthlyCount >= env.FREE_TIER_CONVERSATIONS_PER_MONTH) {
-    return {
-      allowed: false,
-      plan,
-      reason: 'monthly_conversation_limit',
-      limit: env.FREE_TIER_CONVERSATIONS_PER_MONTH,
-    };
-  }
-
-  const userMessageCount = Number(conversationResult?.rows?.[0]?.count || 0);
-  if (userMessageCount >= env.FREE_TIER_MESSAGES_PER_CONVERSATION) {
-    return {
-      allowed: false,
-      plan,
-      reason: 'conversation_message_limit',
-      limit: env.FREE_TIER_MESSAGES_PER_CONVERSATION,
-    };
-  }
-
-  return { allowed: true, plan };
+  return { allowed: true, balance };
 };
 
 export const recordUsage = async (params: {
@@ -107,4 +57,33 @@ export const recordUsage = async (params: {
       updated_at = NOW()`,
     [params.accountNumber, month, isFirstPersistedUserMessage ? 1 : 0]
   );
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const upserted = await client.query(
+      `INSERT INTO account_credits (account_number, balance, updated_at)
+       VALUES ($1, -1, NOW())
+       ON CONFLICT (account_number)
+       DO UPDATE SET balance = account_credits.balance - 1, updated_at = NOW()
+       RETURNING balance`,
+      [params.accountNumber]
+    );
+    const balanceAfter = Number(upserted.rows[0].balance);
+
+    await client.query(
+      `INSERT INTO credit_transactions (
+        account_number, type, credits, balance_after, description, created_at
+      ) VALUES ($1, 'usage', -1, $2, 'Chat message', NOW())`,
+      [params.accountNumber, balanceAfter]
+    );
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };

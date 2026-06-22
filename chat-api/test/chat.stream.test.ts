@@ -216,7 +216,8 @@ describe('POST /v1/chat/stream', () => {
     it('streams meta → token → done events in order', async () => {
       vi.mocked(pool.query)
         .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
-        .mockResolvedValueOnce({ rows: [] } as never);
+        .mockResolvedValueOnce({ rows: [] } as never)
+        .mockResolvedValueOnce({ rows: [{ balance: 10 }] } as never);
 
       const fetchMock = vi
         .fn()
@@ -256,7 +257,8 @@ describe('POST /v1/chat/stream', () => {
     it('returns 502 when Gemini call fails', async () => {
       vi.mocked(pool.query)
         .mockResolvedValueOnce({ rows: [VALID_ACCOUNT] } as never)
-        .mockResolvedValueOnce({ rows: [] } as never);
+        .mockResolvedValueOnce({ rows: [] } as never)
+        .mockResolvedValueOnce({ rows: [{ balance: 10 }] } as never);
 
       vi.stubGlobal(
         'fetch',

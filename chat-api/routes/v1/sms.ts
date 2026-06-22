@@ -73,7 +73,7 @@ router.post('/twilio/webhook', async (req: Request, res: Response) => {
     const usage = await assertUsageAllowed({ accountNumber: resolved.accountNumber, conversationId });
     if (!usage.allowed) {
       res.type('text/xml');
-      return res.send('<Response><Message>This account has reached its free tier limit. Please upgrade to continue.</Message></Response>');
+      return res.send('<Response><Message>This account has run out of credits. Please add credit to continue.</Message></Response>');
     }
 
     const prompt = await buildAgentPrompt({

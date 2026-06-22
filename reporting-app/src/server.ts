@@ -3,6 +3,7 @@ import app from './server-app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { testConnection } from './config/db.js';
+import { runMigrations } from './config/migrate.js';
 
 const server = http.createServer(app);
 
@@ -53,13 +54,15 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const PORT = env.PORT;
 
-// Test database connection before starting server
+// Test database connection, apply migrations, then start server
 testConnection()
-  .then((connected) => {
+  .then(async (connected) => {
     if (!connected) {
       logger.error('Failed to connect to database. Server will not start.');
       process.exit(1);
     }
+
+    await runMigrations();
 
     server.listen(PORT, () => {
       logger.info({ port: PORT, env: env.NODE_ENV }, 'Server started');

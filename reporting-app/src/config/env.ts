@@ -40,6 +40,7 @@ const envSchema = z.object({
   MESSAGE_ENCRYPTION_KEY: z.string().min(16, 'MESSAGE_ENCRYPTION_KEY is required'),
   MAILERSEND_API_KEY: z.string().min(1, 'MAILERSEND_API_KEY is required'),
   MAIL_FROM: z.string().email('MAIL_FROM must be a valid email'),
+  CONTACT_NOTIFY_EMAIL: z.string().email().optional(),
   APP_BASE_URL: z.string().url('APP_BASE_URL must be a valid URL'),
   CHAT_API_URL: z.string().url('CHAT_API_URL must be a valid URL'),
   SUPABASE_URL: z.string().url().optional(),

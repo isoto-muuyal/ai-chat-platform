@@ -160,3 +160,49 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cms-content {
+  max-width: 760px;
+  line-height: 1.6;
+}
+
+.cms-content h2 {
+  margin-top: 28px;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+  background: white;
+  border: 1px solid #dde3ee;
+  border-radius: 8px;
+  padding: 22px;
+  box-shadow: 0 12px 30px rgba(24, 32, 51, 0.08);
+}
+
+.contact-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 700;
+}
+
+.contact-form input,
+.contact-form textarea {
+  border: 1px solid #cfd7e6;
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.contact-form button {
+  align-self: flex-start;
+}
+
+.public-band .error {
+  color: #b91c1c;
+  font-weight: 700;
+}

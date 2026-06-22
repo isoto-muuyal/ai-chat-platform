@@ -5,6 +5,7 @@ import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.js';
 import { applyAccountScope } from '../utils/accountScope.js';
+import { getBalance } from '../services/credits.js';
 
 const router = Router();
 
@@ -21,6 +22,51 @@ const getMessageBoardOwner = (req: Request): string => {
 
 // All API routes require authentication
 router.use(requireAuth);
+
+// GET /api/account/summary
+router.get('/account/summary', async (req: Request, res: Response) => {
+  try {
+    const accountNumber = req.session.accountNumber;
+    if (accountNumber === undefined) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const [balance, lifetimeResult, transactionsResult, packagesResult] = await Promise.all([
+      getBalance(accountNumber),
+      pool.query(
+        `SELECT
+          (SELECT COUNT(*) FROM conversations WHERE account_number = $1)::int as conversations,
+          (SELECT COUNT(*) FROM messages WHERE account_number = $1)::int as messages`,
+        [accountNumber]
+      ),
+      pool.query(
+        `SELECT id, type, credits, balance_after, description, created_at
+         FROM credit_transactions
+         WHERE account_number = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [accountNumber]
+      ),
+      pool.query(
+        `SELECT id, name, credits, price_usd
+         FROM credit_packages
+         WHERE active = true
+         ORDER BY sort_order ASC`
+      ),
+    ]);
+
+    return res.json({
+      balance,
+      lifetimeConversations: lifetimeResult.rows[0]?.conversations || 0,
+      lifetimeMessages: lifetimeResult.rows[0]?.messages || 0,
+      transactions: transactionsResult.rows,
+      packages: packagesResult.rows,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to load account summary');
+    return res.status(500).json({ error: 'Failed to load account summary' });
+  }
+});
 
 // GET /api/overview?days=7|30|90
 router.get('/overview', async (req: Request, res: Response) => {

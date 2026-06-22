@@ -3,9 +3,78 @@ import { z } from 'zod';
 import { pool } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { requireAuth } from '../middleware/auth.js';
-import { createPayPalSubscription, verifyPayPalWebhook } from '../services/paypal.js';
+import { createPayPalSubscription, createPayPalOrder, capturePayPalOrder, verifyPayPalWebhook } from '../services/paypal.js';
+import { adjustCredits } from '../services/credits.js';
 
 const router = Router();
+
+router.post('/credits/checkout', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (req.session.accountNumber === undefined) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const packageId = z.string().uuid().parse(req.body.packageId);
+    const packageResult = await pool.query(
+      `SELECT id, name, credits, price_usd FROM credit_packages WHERE id = $1 AND active = true`,
+      [packageId]
+    );
+    const creditPackage = packageResult.rows[0];
+    if (!creditPackage) {
+      return res.status(404).json({ error: 'Credit package not found' });
+    }
+
+    const order = await createPayPalOrder({
+      accountNumber: req.session.accountNumber,
+      packageId: creditPackage.id,
+      amountUsd: Number(creditPackage.price_usd),
+    });
+
+    return res.status(201).json(order);
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to create PayPal order for credits');
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to start checkout' });
+  }
+});
+
+router.get('/credits/capture', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (req.session.accountNumber === undefined) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const orderId = z.string().min(1).parse(req.query.orderId);
+    const capture = await capturePayPalOrder(orderId);
+    if (capture.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Payment not completed' });
+    }
+
+    const [, packageId] = (capture.customId || '').split(':');
+    const packageResult = await pool.query(
+      `SELECT id, name, credits, price_usd FROM credit_packages WHERE id = $1`,
+      [packageId]
+    );
+    const creditPackage = packageResult.rows[0];
+    if (!creditPackage) {
+      return res.status(400).json({ error: 'Credit package not found for this order' });
+    }
+
+    const balance = await adjustCredits({
+      accountNumber: req.session.accountNumber,
+      delta: Number(creditPackage.credits),
+      type: 'purchase',
+      description: `Purchased ${creditPackage.name}`,
+      provider: 'paypal',
+      providerReference: orderId,
+      priceUsd: Number(creditPackage.price_usd),
+    });
+
+    return res.json({ ok: true, balance });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to capture PayPal order for credits');
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to capture payment' });
+  }
+});
 
 const paypalWebhookSchema = z.object({
   event_type: z.string().min(1),
