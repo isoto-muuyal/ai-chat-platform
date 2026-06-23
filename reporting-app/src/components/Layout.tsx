@@ -1,6 +1,7 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import Logo from './Logo';
 import './Layout.css';
 
 export default function Layout() {
@@ -23,11 +24,12 @@ export default function Layout() {
       <nav className="public-links-bar">
         <Link to="/about">About Us</Link>
         <Link to="/how-it-works">How It Works</Link>
+        <Link to="/pricing">Pricing</Link>
         <Link to="/privacy">Privacy</Link>
         <Link to="/contact">Contact Us</Link>
       </nav>
       <header className="header">
-        <h1>{t('appTitle')}</h1>
+        <Logo />
         <nav className="nav">
           <Link to="/dashboard">{t('dashboard')}</Link>
           <Link to="/topics">{t('topics')}</Link>
@@ -46,6 +48,7 @@ export default function Layout() {
               <Link to="/admin/content">Content</Link>
               <Link to="/admin/paypal">PayPal</Link>
               <Link to="/admin/statistics">Statistics</Link>
+              <Link to="/admin/cost-calculator">Cost Calculator</Link>
             </>
           )}
         </nav>

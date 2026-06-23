@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e0e3d 0%, #3b0764 55%, #2563eb 100%);
 }
 
 .login-card-wrapper {
@@ -68,13 +68,13 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #2563eb;
 }
 
 .submit-btn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e0e3d 0%, #3b0764 55%, #2563eb 100%);
   color: white;
   border: none;
   border-radius: 6px;
@@ -101,7 +101,7 @@
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .submit-btn:disabled {
@@ -115,7 +115,7 @@
 }
 
 .forgot-wrapper a {
-  color: #667eea;
+  color: #2563eb;
   font-size: 14px;
   text-decoration: none;
 }

@@ -42,4 +42,22 @@ Replaced the PayPal subscription/free-tier model with pay-as-you-go credits (1 c
 - Root `README.md`: added "First-Time Setup: Accounts & .env Walkthrough" covering Postgres/Supabase, Gemini, MailerSend, and PayPal account creation, plus updated the `reporting-app` env var list.
 - `reporting-app/.env.example`: added `CONTACT_NOTIFY_EMAIL`, `SUPABASE_*`, and `PAYPAL_*` entries.
 
+## 2026-06-23 — Rebrand, public nav everywhere, pricing page, cost calculator
+
+### Rebrand & design system
+- Renamed brand to "Muuyal EZChat"; new `Logo` component (SVG mark + wordmark) and favicon, used in `PublicNav`, `Login`, and the logged-in `Layout` header.
+- New dark-purple/blue/white CSS variables in `index.css`, applied consistently across `Layout.css`, `PublicPages.css`, `Login.css` — same look on About Us, How It Works, Pricing, Privacy, Contact Us, Login, Sign up, and the logged-in app.
+- `PublicNav` is now shared by Login and Signup (previously had separate hardcoded nav markup); the logged-in `Layout` also shows a public-links bar so those pages are reachable while logged in.
+
+### Signup
+- Removed the "Pro with PayPal" plan toggle and subscription-creation call from signup — free-only signup; upgrading to Pro is deferred to "Your Account" after the user starts using the product.
+
+### Pricing page
+- New public `/pricing` route, backed by a new public `GET /api/billing/packages` endpoint (no auth) listing active credit packages with computed $/message rate.
+
+### Admin cost calculator
+- `reporting-app/sql/migrations/003_cost_calculator.sql`: new `ai_providers` (seeded with Gemini Flash and ChatGPT GPT-4o mini rate cards) and `infrastructure_costs` tables.
+- `GET/POST/PUT/DELETE /api/admin/ai-providers` and `/api/admin/infrastructure-costs` (sysadmin-only).
+- `/admin/cost-calculator`: pick an AI provider (or add a custom one) with input/output $-per-million-token rates, enter per-conversation token assumptions, log infrastructure costs (provider/server type/monthly cost), and see projected monthly cost + cost-per-user across 10/100/1,000/5,000/>5,000 user volume tiers.
+
 Full implementation plan: `/Users/isoto/.claude/plans/mighty-exploring-sparrow.md`.

@@ -86,7 +86,7 @@ export const createPayPalSubscription = async (params: {
         email_address: params.email,
       },
       application_context: {
-        brand_name: 'AI Chat Platform',
+        brand_name: 'Muuyal EZChat',
         user_action: 'SUBSCRIBE_NOW',
         return_url: env.PAYPAL_RETURN_URL || `${env.APP_BASE_URL.replace(/\/$/, '')}/settings`,
         cancel_url: env.PAYPAL_CANCEL_URL || `${env.APP_BASE_URL.replace(/\/$/, '')}/signup`,
@@ -138,7 +138,7 @@ export const createPayPalOrder = async (params: {
         },
       ],
       application_context: {
-        brand_name: 'AI Chat Platform',
+        brand_name: 'Muuyal EZChat',
         user_action: 'PAY_NOW',
         return_url: `${env.APP_BASE_URL.replace(/\/$/, '')}/account`,
         cancel_url: `${env.APP_BASE_URL.replace(/\/$/, '')}/account`,

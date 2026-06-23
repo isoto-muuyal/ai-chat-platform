@@ -8,6 +8,18 @@ import { adjustCredits } from '../services/credits.js';
 
 const router = Router();
 
+router.get('/packages', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, credits, price_usd FROM credit_packages WHERE active = true ORDER BY sort_order ASC`
+    );
+    return res.json({ packages: result.rows });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to fetch public credit packages');
+    return res.status(500).json({ error: 'Failed to load pricing' });
+  }
+});
+
 router.post('/credits/checkout', requireAuth, async (req: Request, res: Response) => {
   try {
     if (req.session.accountNumber === undefined) {

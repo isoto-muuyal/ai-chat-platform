@@ -26,26 +26,25 @@
 .header {
   background: var(--header-bg);
   border-bottom: 1px solid var(--border);
-  padding: 20px 40px;
+  padding: 16px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 4px var(--shadow);
 }
 
-.header h1 {
-  color: var(--text);
-  font-size: 24px;
-  font-weight: 600;
+.header .brand-wordmark {
+  color: #ffffff;
 }
 
 .nav {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .nav a {
-  color: var(--nav-link);
+  color: #c7d2fe;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -53,7 +52,7 @@
 }
 
 .nav a:hover {
-  color: var(--nav-link-hover);
+  color: #ffffff;
   text-decoration: underline;
 }
 
@@ -64,14 +63,14 @@
 }
 
 .user-info span {
-  color: var(--text-muted);
+  color: #c7d2fe;
   font-size: 14px;
 }
 
 .theme-toggle {
   background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -81,11 +80,11 @@
 }
 
 .theme-toggle:hover {
-  background: var(--surface-muted);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .logout-btn {
-  background: #667eea;
+  background: #2563eb;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -97,7 +96,7 @@
 }
 
 .logout-btn:hover {
-  background: #5568d3;
+  background: #1d4ed8;
 }
 
 .main {

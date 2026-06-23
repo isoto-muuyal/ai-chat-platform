@@ -26,7 +26,6 @@ const defaultSettings: Settings = {
 };
 
 const translations = {
-  appTitle: { en: 'Reporting Dashboard', es: 'Panel de Reportes', fr: 'Tableau de bord' },
   dashboard: { en: 'Dashboard', es: 'Tablero', fr: 'Tableau' },
   topics: { en: 'Topics', es: 'Temas', fr: 'Sujets' },
   troll: { en: 'Troll', es: 'Troll', fr: 'Troll' },

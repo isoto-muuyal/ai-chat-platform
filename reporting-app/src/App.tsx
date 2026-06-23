@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import CmsPage from './pages/CmsPage';
 import Contact from './pages/Contact';
+import Pricing from './pages/Pricing';
 import AuthCallback from './pages/AuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -20,6 +21,7 @@ import ClientManagement from './pages/ClientManagement';
 import AdminContent from './pages/AdminContent';
 import AdminPayPal from './pages/AdminPayPal';
 import AdminStatistics from './pages/AdminStatistics';
+import AdminCostCalculator from './pages/AdminCostCalculator';
 import YourAccount from './pages/YourAccount';
 import MessageBoards from './pages/MessageBoards';
 import AgentContext from './pages/AgentContext';
@@ -49,6 +51,7 @@ function App() {
         <Route path="/how-it-works" element={<CmsPage slug="how-it-works" />} />
         <Route path="/privacy" element={<CmsPage slug="privacy-statement" />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -73,6 +76,7 @@ function App() {
           <Route path="admin/content" element={<AdminContent />} />
           <Route path="admin/paypal" element={<AdminPayPal />} />
           <Route path="admin/statistics" element={<AdminStatistics />} />
+          <Route path="admin/cost-calculator" element={<AdminCostCalculator />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="conversations/:id" element={<ConversationDetail />} />
           <Route path="recommendations" element={<Recommendations />} />

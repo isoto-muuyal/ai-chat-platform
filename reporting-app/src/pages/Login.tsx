@@ -33,8 +33,8 @@ export default function Login() {
       <PublicNav />
       <div className="login-card-wrapper">
       <div className="login-card">
-        <h1>Reporting Dashboard</h1>
-        <p className="subtitle">Sign in to access the dashboard</p>
+        <h1>Welcome back</h1>
+        <p className="subtitle">Sign in to your Muuyal EZChat dashboard</p>
 
         {error && <div className="error">{error}</div>}
 

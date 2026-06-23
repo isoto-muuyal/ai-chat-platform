@@ -353,4 +353,142 @@ router.get('/statistics', async (_req: Request, res: Response) => {
   }
 });
 
+// --- AI provider rate cards (cost calculator) ---
+
+router.get('/ai-providers', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, input_price_per_million, output_price_per_million
+       FROM ai_providers ORDER BY created_at ASC`
+    );
+    return res.json({ providers: result.rows });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch AI providers' });
+  }
+});
+
+const aiProviderSchema = z.object({
+  name: z.string().min(1).max(120),
+  inputPricePerMillion: z.number().nonnegative(),
+  outputPricePerMillion: z.number().nonnegative(),
+});
+
+router.post('/ai-providers', async (req: Request, res: Response) => {
+  try {
+    const data = aiProviderSchema.parse(req.body);
+    const result = await pool.query(
+      `INSERT INTO ai_providers (name, input_price_per_million, output_price_per_million, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       RETURNING id, name, input_price_per_million, output_price_per_million`,
+      [data.name, data.inputPricePerMillion, data.outputPricePerMillion]
+    );
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    return res.status(500).json({ error: 'Failed to create AI provider' });
+  }
+});
+
+router.put('/ai-providers/:id', async (req: Request, res: Response) => {
+  try {
+    const data = aiProviderSchema.parse(req.body);
+    const result = await pool.query(
+      `UPDATE ai_providers
+       SET name = $1, input_price_per_million = $2, output_price_per_million = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, name, input_price_per_million, output_price_per_million`,
+      [data.name, data.inputPricePerMillion, data.outputPricePerMillion, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'AI provider not found' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    return res.status(500).json({ error: 'Failed to update AI provider' });
+  }
+});
+
+router.delete('/ai-providers/:id', async (req: Request, res: Response) => {
+  try {
+    await pool.query(`DELETE FROM ai_providers WHERE id = $1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete AI provider' });
+  }
+});
+
+// --- Infrastructure costs (cost calculator) ---
+
+router.get('/infrastructure-costs', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, provider_name, server_type, monthly_cost_usd
+       FROM infrastructure_costs ORDER BY created_at ASC`
+    );
+    return res.json({ items: result.rows });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch infrastructure costs' });
+  }
+});
+
+const infrastructureCostSchema = z.object({
+  providerName: z.string().min(1).max(120),
+  serverType: z.string().min(1).max(120),
+  monthlyCostUsd: z.number().nonnegative(),
+});
+
+router.post('/infrastructure-costs', async (req: Request, res: Response) => {
+  try {
+    const data = infrastructureCostSchema.parse(req.body);
+    const result = await pool.query(
+      `INSERT INTO infrastructure_costs (provider_name, server_type, monthly_cost_usd, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       RETURNING id, provider_name, server_type, monthly_cost_usd`,
+      [data.providerName, data.serverType, data.monthlyCostUsd]
+    );
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    return res.status(500).json({ error: 'Failed to create infrastructure cost' });
+  }
+});
+
+router.put('/infrastructure-costs/:id', async (req: Request, res: Response) => {
+  try {
+    const data = infrastructureCostSchema.parse(req.body);
+    const result = await pool.query(
+      `UPDATE infrastructure_costs
+       SET provider_name = $1, server_type = $2, monthly_cost_usd = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, provider_name, server_type, monthly_cost_usd`,
+      [data.providerName, data.serverType, data.monthlyCostUsd, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Infrastructure cost not found' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    return res.status(500).json({ error: 'Failed to update infrastructure cost' });
+  }
+});
+
+router.delete('/infrastructure-costs/:id', async (req: Request, res: Response) => {
+  try {
+    await pool.query(`DELETE FROM infrastructure_costs WHERE id = $1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete infrastructure cost' });
+  }
+});
+
 export default router;
