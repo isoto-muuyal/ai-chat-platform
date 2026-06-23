@@ -31,6 +31,7 @@ export default function Login() {
   return (
     <div className="login-container">
       <PublicNav />
+      <div className="login-card-wrapper">
       <div className="login-card">
         <h1>Reporting Dashboard</h1>
         <p className="subtitle">Sign in to access the dashboard</p>
@@ -70,6 +71,7 @@ export default function Login() {
           <span> · </span>
           <Link to="/signup">Create account</Link>
         </div>
+      </div>
       </div>
     </div>
   );
