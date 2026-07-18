@@ -79,14 +79,19 @@ app.use((req, res, next) => {
 });
 
 // API routes
+// Note: apiRouter is mounted last among the /api routers because it applies
+// requireAuth to every request that reaches it (router.use(requireAuth), no
+// path filter). Mounting it at the broad '/api' prefix before the more
+// specific routers below would gate their public endpoints (cms, contact,
+// billing/packages) behind auth as well, since Express tries mounts in order.
 app.use('/api/auth', authRouter);
-app.use('/api', apiRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/agent-context', agentContextRouter);
 app.use('/api/cms', cmsRouter);
 app.use('/api/contact', contactRouter);
+app.use('/api', apiRouter);
 app.use(healthRouter);
 
 // Serve React app in production
