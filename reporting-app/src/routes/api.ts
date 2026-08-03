@@ -16,6 +16,16 @@ const truncateWords = (text: string | null, maxWords = 5): string => {
   return `${words.slice(0, maxWords).join(' ')}...`;
 };
 
+// Some Roblox NPC scripts prepend their persona/system prompt to the player's
+// message before sending it (e.g. "<persona>\n\nUsuario: <text>"). Strip that
+// prefix so the admin UI only shows what the player actually said.
+const extractUserText = (content: string): string => {
+  const marker = /usuario:\s*/i;
+  const match = marker.exec(content);
+  if (!match) return content;
+  return content.slice(match.index + match[0].length);
+};
+
 const getMessageBoardOwner = (req: Request): string => {
   return req.session.fullName || req.session.email || req.session.userId || '';
 };
@@ -687,7 +697,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
       messages: messagesResult.rows.map((row) => ({
         id: row.id,
         sender: row.sender,
-        content: row.content ?? '',
+        content: row.sender === 'user' ? extractUserText(row.content ?? '') : row.content ?? '',
         createdAt: row.created_at,
         isTroll: row.is_troll,
         sourceClient: row.source_client,

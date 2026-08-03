@@ -8,7 +8,7 @@ import { promptSanitizer } from '../../src/services/prompt-sanitizer.js';
 import { TOPIC_PROMPT_FRAGMENT, normalizeTopic } from '../../src/services/topic-classifier.js';
 import { executeInferGeminiCall, executeMainGeminiCall } from '../../src/services/resilience.js';
 import { resolveSourceConfig } from '../../src/services/message-routing.js';
-import { generateText } from '../../src/services/llm.js';
+import { generateText, type ConversationTurn } from '../../src/services/llm.js';
 import { buildAgentPrompt } from '../../src/services/agent-context.js';
 import { assertUsageAllowed, recordUsage } from '../../src/services/usage-limits.js';
 
@@ -144,6 +144,23 @@ const inferMeta = async (message: string): Promise<{
     logger.warn({ err }, 'Gemini inference failed, using defaults');
     return { topic: null, sentiment: null, is_troll: false };
   }
+};
+
+const HISTORY_TURN_LIMIT = 10;
+
+const getConversationHistory = async (conversationId: string): Promise<ConversationTurn[]> => {
+  const result = await pool.query(
+    `SELECT sender, COALESCE(content, pgp_sym_decrypt(content_encrypted, $2)::text) as content
+     FROM messages
+     WHERE conversation_id = $1 AND sender IN ('user', 'assistant')
+     ORDER BY created_at DESC
+     LIMIT $3`,
+    [conversationId, env.MESSAGE_ENCRYPTION_KEY, HISTORY_TURN_LIMIT]
+  );
+
+  return result.rows
+    .reverse()
+    .map((row) => ({ sender: row.sender as 'user' | 'assistant', content: row.content as string }));
 };
 
 const persistInteraction = async (params: {
@@ -375,6 +392,8 @@ router.post('/stream', async (req: Request, res: Response) => {
     res.setHeader('Connection', 'keep-alive');
     res.write(`event: error\n`);
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    res.write(`event: token\n`);
+    res.write(`data: ${JSON.stringify({ text: 'Se acabaron mis créditos por ahora, vuelve más tarde.' })}\n\n`);
     res.write(`event: done\n`);
     res.write(`data: ${JSON.stringify({ ok: false, error: 'upgrade_required' })}\n\n`);
     return res.end();
@@ -411,13 +430,20 @@ router.post('/stream', async (req: Request, res: Response) => {
     'llm request prepared'
   );
 
+  const history = providedConversationId ? await getConversationHistory(providedConversationId) : [];
+
+  // TEMPORARY: the MCP destination isn't ready yet, so every request is forced
+  // to the app's own Gemini credentials regardless of the account's configured
+  // destination. Remove this override (and go back to sourceConfig.destination)
+  // once the MCP server is live.
   executeMainGeminiCall(() =>
     generateText({
-      provider: sourceConfig.destination.provider,
-      model: sourceConfig.destination.model,
-      apiKey: sourceConfig.destination.apiKey,
+      provider: 'gemini',
+      model: env.GEMINI_MODEL,
+      apiKey: env.GEMINI_KEY,
       prompt,
       message,
+      history,
     })
   )
     .then((text) => {

@@ -16,6 +16,10 @@ const getUsageMonth = (): string => {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;
 };
 
+// TEMPORARY: credit enforcement is disabled while usage is free. Re-enable
+// the balance check below once billing is ready to go live again.
+const CREDIT_ENFORCEMENT_ENABLED = false;
+
 export const assertUsageAllowed = async (params: {
   accountNumber: number;
   conversationId: string;
@@ -26,7 +30,7 @@ export const assertUsageAllowed = async (params: {
   );
   const balance = Number(result.rows[0]?.balance || 0);
 
-  if (balance <= 0) {
+  if (CREDIT_ENFORCEMENT_ENABLED && balance <= 0) {
     return { allowed: false, reason: 'insufficient_credits', limit: 0 };
   }
 

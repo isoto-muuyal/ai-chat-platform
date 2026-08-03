@@ -1,19 +1,17 @@
 local HttpService = game:GetService("HttpService")
-local ProximityPrompt = script.Parent:WaitForChild("GeminiChat")
+local ProximityPrompt = script.Parent:WaitForChild("DereGeminiChat")
 local ChatService = game:GetService("Chat")
-local GeminiEvent = game.ReplicatedStorage:WaitForChild("GeminiEvent")
+local DereGeminiEvent = game.ReplicatedStorage:WaitForChild("DereGeminiEvent")
 local LocalizationService = game:GetService("LocalizationService")
 
 local API_URL = "https://npc-api.muuyal.tech/v1/chat/stream"
 --local API_URL = HttpService:GetSecret("API_URL")
---local API_KEY = "your-tmp-key"
-local API_KEY = "BrYUopNbKoEiMQtbpP9pjbsorVw4YJfV"
-
+local API_KEY = "mvl_LZkhGynUWLNJB-e7u4lCqAqWJxsnU1q1IPaxyxW6lds"
 --local API_KEY = HttpService:GetSecret("API_KEY")
 
 local ACCOUNT_NUMBER = 100001
 --local ACCOUNT_NUMBER = HttpService:getSecret("ACCOUNT_NUMBER")
-local SOURCE_CLIENT = "chairo_roblox"
+local SOURCE_CLIENT = "derechairo_roblox"
 --local SOURCE_CLIENT = HttpService:GetSecret("SGOURCE_CLIENT")
 
 --local npcType = HttpService:GetSecret("CHAIRO_TYPE")
@@ -52,16 +50,19 @@ local function getCountry(player)
 	pcall(function()
 		country = LocalizationService:GetCountryRegionForPlayerAsync(player)
 	end)
+	
 	print("Country: ")
 	if country == nil then
 		print("Variable is nil")
 		country = "NA"
 	end
+	print(country)
+	
 	return country
 end
 
 local function buildPayload(player, playerMessage)
-	print("Building payload for chairo")
+	print("Building payload for derechairo")
 	local country = getCountry(player)
 	local sessionId = tostring(game.JobId or "")
 
@@ -88,7 +89,7 @@ local function buildPayload(player, playerMessage)
 end
 
 local function getApiResponse(player, playerMessage)
-	print("📡 Server: Calling API for chairo...")
+	print("📡 Server: Calling API for derechairo...")
 
 	local body = buildPayload(player, playerMessage)
 
@@ -130,17 +131,17 @@ end
 ProximityPrompt.Triggered:Connect(function(player)
 	print("🔓 Server: Sending OpenUI signal to " .. player.Name)
 	-- This triggers the 'OnClientEvent' in your new LocalScript
-	GeminiEvent:FireClient(player, "OpenUI", "chairo")
+	DereGeminiEvent:FireClient(player, "OpenUI", "derechairo")
 end)
 
 -- 2. Receive from RemoteEvent
-GeminiEvent.OnServerEvent:Connect(function(player, mensajeUsuario)
-	print("📩 Server: Received event from " .. player.Name .. " with message: " .. mensajeUsuario)
+DereGeminiEvent.OnServerEvent:Connect(function(player, mensajeUsuario)
+	print("📩 Derechairo Server: Received event from " .. player.Name .. " with message: " .. mensajeUsuario)
 
 	local head = script.Parent:FindFirstChild("Head")
 
 	if head then
-		ChatService:Chat(head, "¡A ver, a ver! Déjame te explico cómo está la cosa...", Enum.ChatColor.Blue)
+		ChatService:Chat(head, "...", Enum.ChatColor.Blue)
 
 		local respuestaIA = getApiResponse(player, mensajeUsuario)
 		print("🤖 Server: API Responded")
@@ -164,7 +165,7 @@ local root = duck:WaitForChild("HumanoidRootPart")
 -- movement settings
 humanoid.WalkSpeed = 8
 local STEP_DISTANCE = 3
-local RANGE_STEPS = 15
+local RANGE_STEPS = 3
 local WAIT_MIN = 0.6
 local WAIT_MAX = 1.4
 

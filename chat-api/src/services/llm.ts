@@ -1,15 +1,26 @@
 import { logger } from '../../config/logger.js';
 import type { DestinationProvider } from './message-routing.js';
 
+export type ConversationTurn = {
+  sender: 'user' | 'assistant';
+  content: string;
+};
+
 type GenerateTextParams = {
   provider: DestinationProvider;
   model: string;
   apiKey: string;
   prompt: string | null;
   message: string;
+  history?: ConversationTurn[];
 };
 
-const generateGeminiText = async ({ model, apiKey, prompt, message }: GenerateTextParams): Promise<string> => {
+const generateGeminiText = async ({ model, apiKey, prompt, message, history }: GenerateTextParams): Promise<string> => {
+  const historyContents = (history ?? []).map((turn) => ({
+    role: turn.sender === 'assistant' ? 'model' : 'user',
+    parts: [{ text: turn.content }],
+  }));
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -17,6 +28,7 @@ const generateGeminiText = async ({ model, apiKey, prompt, message }: GenerateTe
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
+          ...historyContents,
           {
             role: 'user',
             parts: [{ text: message }],
@@ -45,7 +57,12 @@ const generateGeminiText = async ({ model, apiKey, prompt, message }: GenerateTe
   return text as string;
 };
 
-const generateOpenAIText = async ({ model, apiKey, prompt, message }: GenerateTextParams): Promise<string> => {
+const generateOpenAIText = async ({ model, apiKey, prompt, message, history }: GenerateTextParams): Promise<string> => {
+  const historyInput = (history ?? []).map((turn) => ({
+    role: turn.sender === 'assistant' ? 'assistant' : 'user',
+    content: turn.content,
+  }));
+
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -54,7 +71,7 @@ const generateOpenAIText = async ({ model, apiKey, prompt, message }: GenerateTe
     },
     body: JSON.stringify({
       model,
-      input: message,
+      input: [...historyInput, { role: 'user', content: message }],
       ...(prompt ? { instructions: prompt } : {}),
     }),
   });
